@@ -5,7 +5,9 @@ advocatícios**, com emissão de proposta ao cliente.
 
 Ecossistema JR — Escritório Edmilson Lopes Junior · OAB/SP 294.775.
 
-- Produção (previsto): **custas.valorlog.com.br**
+- Repositório: **github.com/Junior2p/custas**
+- Vercel: projeto **elj/custas** (deploy manual via CLI)
+- Produção: **custas.valorlog.com.br** — aguardando o CNAME na GoDaddy
 - Base do projeto: engenharia reversa da planilha `Custos Processuais.xlsx`
   (documentada em `Cortex IA/Custas/docs/`)
 
@@ -90,5 +92,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 npx vercel --prod --yes --scope elj
 ```
 
-DNS: CNAME `custas` → `cname.vercel-dns.com` na GoDaddy (valorlog.com.br).
-Depois, adicionar o card do sistema em `Portal-ELJ/src/lib/projetos.ts`.
+**DNS** (GoDaddy, zona `valorlog.com.br`): CNAME `custas` → `cname.vercel-dns.com`.
+Depois de propagar: `npx vercel domains verify custas.valorlog.com.br --scope elj`.
+
+**Deployment Protection** está ligada — o acesso passa pelo SSO da Vercel. É proposital
+enquanto o sistema não tem login próprio. Para abrir ao público:
+*Settings → Deployment Protection → Vercel Authentication → Disabled*.
+
+Quando estiver público, adicionar o card em `Portal-ELJ/src/lib/projetos.ts`.
