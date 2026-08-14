@@ -37,6 +37,14 @@ export function calcularHonorarios(
     };
   }
 
+  // Embutido: incide sobre os demais custos, não sobre o valor do bem.
+  if (config.modo === "percentual_custos") {
+    return {
+      valor: arredondar(base * (config.percentual / 100)),
+      memoria: `${config.percentual}% sobre os custos do serviço (${formatarMoeda(base)})`,
+    };
+  }
+
   // Tabela OAB: percentual sobre o valor, respeitando o piso da ação.
   const calculado = arredondar(base * (config.percentual / 100));
   if (calculado < config.valorMinimo) {

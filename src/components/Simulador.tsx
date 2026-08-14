@@ -26,7 +26,6 @@ import {
   CONDICOES_PADRAO,
   FAIXAS_CUSTAS_JUDICIAIS,
   PARAMETROS_PADRAO,
-  PROPOSTA_ITENS_PADRAO,
 } from "@/lib/dados/padroes";
 import { SERVICOS, servicoPorChave } from "@/lib/dados/servicos";
 import { Proposta } from "./Proposta";
@@ -60,10 +59,13 @@ export function Simulador() {
     { id: novoId(), nome: "Herdeiro 2", tipo: "herdeiro", percentual: 0.5 },
   ]);
 
-  const [honorariosModo, setHonorariosModo] = useState<ConfigHonorarios["modo"]>("fixo");
+  const [honorariosModo, setHonorariosModo] = useState<ConfigHonorarios["modo"]>(
+    SERVICOS[0].honorariosPadrao.modo
+  );
   const [honorariosValor, setHonorariosValor] = useState(2000);
   const [honorariosPercentual, setHonorariosPercentual] = useState(8);
-  const [acaoOab, setAcaoOab] = useState(TABELA_OAB[4]?.acao ?? TABELA_OAB[0].acao);
+  const [honorariosPercentualCustos, setHonorariosPercentualCustos] = useState(10);
+  const [acaoOab, setAcaoOab] = useState(SERVICOS[0].acaoOab ?? TABELA_OAB[0].acao);
 
   const [aplicarMulta, setAplicarMulta] = useState(false);
   const [rateio, setRateio] = useState<"por_quinhao" | "igualitario">("por_quinhao");
@@ -76,7 +78,7 @@ export function Simulador() {
 
   const [valorNegociado, setValorNegociado] = useState(0);
   const [viaEscolhida, setViaEscolhida] = useState<Via>("extrajudicial");
-  const [itensProposta, setItensProposta] = useState(PROPOSTA_ITENS_PADRAO);
+  const [itensProposta, setItensProposta] = useState(SERVICOS[0].itensProposta);
   const [entrada, setEntrada] = useState(CONDICOES_PADRAO.entradaPercentual);
   const [parcelas, setParcelas] = useState(CONDICOES_PADRAO.parcelas);
 
@@ -91,9 +93,17 @@ export function Simulador() {
     if (honorariosModo === "fixo") return { modo: "fixo", valor: honorariosValor };
     if (honorariosModo === "percentual")
       return { modo: "percentual", percentual: honorariosPercentual };
+    if (honorariosModo === "percentual_custos")
+      return { modo: "percentual_custos", percentual: honorariosPercentualCustos };
     const acao = buscarAcao(TABELA_OAB, acaoOab) ?? TABELA_OAB[0];
     return { modo: "tabela", percentual: acao.percentual, valorMinimo: acao.valorMinimo };
-  }, [honorariosModo, honorariosValor, honorariosPercentual, acaoOab]);
+  }, [
+    honorariosModo,
+    honorariosValor,
+    honorariosPercentual,
+    honorariosPercentualCustos,
+    acaoOab,
+  ]);
 
   const contextoBase = useMemo(
     (): Omit<ContextoCalculo, "via"> => ({
@@ -178,6 +188,11 @@ export function Simulador() {
                   const novo = servicoPorChave(e.target.value);
                   setTipoServico(novo.chave);
                   if (novo.acaoOab) setAcaoOab(novo.acaoOab);
+                  setHonorariosModo(novo.honorariosPadrao.modo);
+                  if (novo.honorariosPadrao.modo === "percentual_custos") {
+                    setHonorariosPercentualCustos(novo.honorariosPadrao.percentual);
+                  }
+                  setItensProposta(novo.itensProposta);
                 }}
               >
                 {SERVICOS.map((sv) => (
@@ -395,8 +410,11 @@ export function Simulador() {
                     }
                   >
                     <option value="fixo">Valor fixo</option>
-                    <option value="percentual">Percentual livre</option>
                     <option value="tabela">Tabela OAB</option>
+                    <option value="percentual">% sobre o valor do bem</option>
+                    <option value="percentual_custos">
+                      % sobre os custos (embutido)
+                    </option>
                   </Selecao>
                 </Campo>
 
@@ -408,6 +426,17 @@ export function Simulador() {
                 {honorariosModo === "percentual" && (
                   <Campo rotulo="Percentual sobre o valor transmitido">
                     <Numero valor={honorariosPercentual} aoMudar={setHonorariosPercentual} />
+                  </Campo>
+                )}
+                {honorariosModo === "percentual_custos" && (
+                  <Campo
+                    rotulo="Percentual sobre os custos do serviço"
+                    dica="Incide sobre todas as demais linhas apuradas. Não aparece destacado na proposta — entra no valor do serviço."
+                  >
+                    <Numero
+                      valor={honorariosPercentualCustos}
+                      aoMudar={setHonorariosPercentualCustos}
+                    />
                   </Campo>
                 )}
                 {honorariosModo === "tabela" && (
@@ -768,7 +797,7 @@ export function Simulador() {
       {/* ---------------- área de impressão ---------------- */}
       <Proposta
         cliente={cliente}
-        tipoServico={servico.nome}
+        textoAbertura={servico.textoProposta}
         via={via}
         bens={bens}
         itens={itensProposta}

@@ -71,6 +71,10 @@ create table if not exists tipos_servico (
   nome              text not null,
   imposto           text not null default 'nenhum' check (imposto in ('itcmd', 'itbi', 'nenhum')),
   imposto_aliquota  numeric(6,3),            -- sobrescreve o parâmetro geral quando preenchido
+  -- honorários padrão do serviço
+  honorarios_modo       text not null default 'tabela'
+                          check (honorarios_modo in ('tabela','percentual','percentual_custos','fixo')),
+  honorarios_percentual numeric(6,3),
   acao_honorario_id uuid references tabela_honorarios(id) on delete set null,
   tem_herdeiros     boolean not null default false,
   tem_partilha      boolean not null default false,
@@ -173,7 +177,9 @@ create table if not exists orcamentos (
   tabela_notas_id  uuid references tabelas_emolumentos(id) on delete set null,
   tabela_sri_id    uuid references tabelas_emolumentos(id) on delete set null,
 
-  honorarios_modo       text not null default 'fixo' check (honorarios_modo in ('tabela','percentual','fixo')),
+  -- 'percentual_custos' = honorários embutidos: % sobre os demais custos apurados
+  honorarios_modo       text not null default 'fixo'
+                          check (honorarios_modo in ('tabela','percentual','percentual_custos','fixo')),
   honorarios_percentual numeric(6,3),
   honorarios_valor      numeric(14,2),
 

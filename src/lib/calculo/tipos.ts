@@ -48,7 +48,13 @@ export type Via = "judicial" | "extrajudicial";
 
 export type ConfigHonorarios =
   | { modo: "fixo"; valor: number }
+  /** Percentual sobre o valor transmitido (o monte-mor / valor do bem). */
   | { modo: "percentual"; percentual: number }
+  /**
+   * Percentual sobre os demais custos apurados — honorários embutidos,
+   * sem cobrança explícita ao cliente. Calculado sempre por último.
+   */
+  | { modo: "percentual_custos"; percentual: number }
   | { modo: "tabela"; percentual: number; valorMinimo: number };
 
 /** Parâmetros gerais editáveis na área de Parametrização. */

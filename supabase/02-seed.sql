@@ -139,14 +139,16 @@ insert into faixas_custas_judiciais (ordem, valor_de, valor_ate, base, quantidad
 -- ------------------------------------------------------------
 -- Tipos de serviço — os que dependem de análise com base no valor
 -- ------------------------------------------------------------
-insert into tipos_servico (chave, nome, imposto, imposto_aliquota, tem_herdeiros, tem_partilha, vias_permitidas, ordem) values
-  ('inventario_consensual', 'Inventário Consensual',       'itcmd',   4, true,  true,  array['judicial','extrajudicial'], 10),
-  ('inventario_litigioso',  'Inventário Litigioso',        'itcmd',   4, true,  true,  array['judicial'],                 20),
-  ('escritura',             'Escritura de Compra e Venda', 'itbi',    3, false, false, array['extrajudicial'],            30),
-  ('usucapiao',             'Usucapião',                   'nenhum',  0, false, false, array['judicial','extrajudicial'], 40),
-  ('divorcio_consensual',   'Divórcio Consensual',         'nenhum',  0, false, true,  array['judicial','extrajudicial'], 50),
-  ('divorcio_litigioso',    'Divórcio Litigioso',          'nenhum',  0, false, true,  array['judicial'],                 60),
-  ('alvara_judicial',       'Alvará Judicial',             'nenhum',  0, true,  true,  array['judicial'],                 70)
+insert into tipos_servico
+  (chave, nome, imposto, imposto_aliquota, tem_herdeiros, tem_partilha, vias_permitidas, honorarios_modo, honorarios_percentual, ordem) values
+  ('inventario_consensual', 'Inventário Consensual',       'itcmd',   4, true,  true,  array['judicial','extrajudicial'], 'tabela',            8,  10),
+  ('inventario_litigioso',  'Inventário Litigioso',        'itcmd',   4, true,  true,  array['judicial'],                 'tabela',            10, 20),
+  -- Escritura: honorários embutidos — 10% sobre os demais custos, sem cobrança destacada
+  ('escritura',             'Escritura de Compra e Venda', 'itbi',    3, false, false, array['extrajudicial'],            'percentual_custos', 10, 30),
+  ('usucapiao',             'Usucapião',                   'nenhum',  0, false, false, array['judicial','extrajudicial'], 'tabela',            20, 40),
+  ('divorcio_consensual',   'Divórcio Consensual',         'nenhum',  0, false, true,  array['judicial','extrajudicial'], 'tabela',            6,  50),
+  ('divorcio_litigioso',    'Divórcio Litigioso',          'nenhum',  0, false, true,  array['judicial'],                 'tabela',            8,  60),
+  ('alvara_judicial',       'Alvará Judicial',             'nenhum',  0, true,  true,  array['judicial'],                 'tabela',            20, 70)
 on conflict (chave) do nothing;
 
 -- Liga cada serviço à sua ação na Tabela OAB
@@ -204,6 +206,8 @@ select v.chave, v.nome, v.tipo_calculo, v.parametro, v.base, v.multiplicador, v.
     ('escritura',             'registro_sri',          'Registro no SRI',                    'tabela_sri',              null,                        null,              null,               null::text[],             true,  70),
     ('escritura',             'certidao_pos_registro', 'Certidão de Imóveis (após registro)','por_unidade',             'certidao_imovel',           null,              'imoveis_registro', null::text[],             true,  75),
     ('escritura',             'outros_custos',         'Outros Custos',                      'percentual_sobre',        'outros_custos_percentual',  'custas_registro', null,               null::text[],             false, 80),
+    -- por último: incide sobre todas as linhas acima
+    ('escritura',             'honorarios',            'Honorários (embutidos)',             'honorarios',              null,                        null,              null,               null::text[],             false, 90),
 
     ('usucapiao',             'honorarios',            'Honorários Advocatícios',            'honorarios',              null,                        null,              null,               null::text[],             false, 10),
     ('usucapiao',             'certidao_previa',       'Certidão de Imóveis (prévia)',       'por_unidade',             'certidao_imovel',           null,              'certidoes',        null::text[],             false, 30),
@@ -257,3 +261,27 @@ select m.id, v.descricao, v.incluso, v.ordem
     ('Transferência de veículos junto ao DETRAN',            false, 70)
        ) as v(descricao, incluso, ordem)
  where m.nome = 'Proposta padrão — Inventário';
+
+-- ------------------------------------------------------------
+-- Modelo de proposta — Escritura (sem linha de honorários:
+-- eles entram embutidos no valor do serviço)
+-- ------------------------------------------------------------
+insert into modelos_proposta (nome, tipo_servico_id, texto_abertura, padrao)
+select 'Proposta padrão — Escritura', ts.id,
+       'Conforme solicitado, apresento a proposta para a realização dos serviços referente à Escritura de:',
+       true
+  from tipos_servico ts where ts.chave = 'escritura';
+
+insert into modelos_proposta_itens (modelo_id, descricao, incluso, ordem)
+select m.id, v.descricao, v.incluso, v.ordem
+  from modelos_proposta m,
+       (values
+    ('Elaboração e lavratura da Escritura Pública',           true,  10),
+    ('Custas do Tabelionato de Notas',                        true,  20),
+    ('Toda documentação necessária (certidões dos imóveis)',  true,  30),
+    ('Imposto de Transmissão de Bens Imóveis — ITBI',         true,  40),
+    ('Registro do imóvel em nome do comprador',               true,  50),
+    ('Impostos atrasados (ex.: IPTU)',                        false, 60),
+    ('Débitos e ônus anteriores à escritura',                 false, 70)
+       ) as v(descricao, incluso, ordem)
+ where m.nome = 'Proposta padrão — Escritura';

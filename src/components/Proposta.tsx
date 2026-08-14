@@ -18,7 +18,7 @@ const ESCRITORIO = {
 
 export function Proposta({
   cliente,
-  tipoServico,
+  textoAbertura,
   via,
   bens,
   itens,
@@ -29,7 +29,7 @@ export function Proposta({
   observacoes,
 }: {
   cliente: string;
-  tipoServico: string;
+  textoAbertura: string;
   via: Via;
   bens: Bem[];
   itens: { descricao: string; incluso: boolean }[];
@@ -55,10 +55,7 @@ export function Proposta({
         Proposta de Prestação de Serviço
       </h1>
 
-      <p>
-        Conforme solicitado, apresento a proposta para a realização dos serviços referente ao{" "}
-        {tipoServico} de:
-      </p>
+      <p>{textoAbertura}</p>
       <p className="my-3 text-center text-sm font-bold uppercase">{cliente || "—"}</p>
 
       {bens.some((b) => b.descricao || b.valorVenal > 0) && (

@@ -322,3 +322,84 @@ test("todo serviço apura um total em cada uma das suas vias", () => {
     }
   }
 });
+
+// ------------------------------------------------------------
+// Honorários embutidos (percentual sobre os custos)
+// ------------------------------------------------------------
+
+test("honorários embutidos incidem sobre os demais custos, não sobre o bem", () => {
+  const escritura = servicoPorChave("escritura");
+  const base = {
+    bens: [
+      {
+        descricao: "IMÓVEL",
+        tipo: "imovel" as const,
+        valorVenal: 400000,
+        percentual: 1,
+        registrar: true,
+        qtdCertidoes: 1,
+      },
+    ],
+    qtdHerdeiros: 0,
+    via: "extrajudicial" as const,
+    parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3 },
+    aplicarMulta: false,
+    tabelaNotas: TABELA_NOTAS_2025,
+    tabelaSri: TABELA_SRI_2025,
+    faixasCustasJudiciais: FAIXAS_CUSTAS_JUDICIAIS,
+    catalogo: escritura.catalogo,
+  };
+
+  // Sem honorários, a escritura dá os R$ 21.894,49 da planilha.
+  const semHonorarios = calcularOrcamento({
+    ...base,
+    honorarios: { modo: "percentual_custos", percentual: 0 },
+  });
+  perto(semHonorarios.total, 21894.49);
+
+  const comHonorarios = calcularOrcamento({
+    ...base,
+    honorarios: { modo: "percentual_custos", percentual: 10 },
+  });
+  const honorarios = comHonorarios.linhas.find((l) => l.chave === "honorarios")!;
+
+  // 10% sobre os custos apurados — não sobre os R$ 400.000 do imóvel.
+  perto(honorarios.valor, 2189.45);
+  perto(comHonorarios.total, 24083.94);
+  assert.match(honorarios.memoria, /sobre os custos/);
+});
+
+test("honorários embutidos entram no total mesmo declarados por último", () => {
+  const escritura = servicoPorChave("escritura");
+  const ultimo = [...escritura.catalogo].sort((a, b) => a.ordem - b.ordem).at(-1)!;
+  assert.equal(ultimo.chave, "honorarios");
+
+  const r = calcularOrcamento({
+    bens: [
+      {
+        descricao: "IMÓVEL",
+        tipo: "imovel",
+        valorVenal: 100000,
+        percentual: 1,
+        registrar: true,
+        qtdCertidoes: 1,
+      },
+    ],
+    qtdHerdeiros: 0,
+    via: "extrajudicial",
+    parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3 },
+    aplicarMulta: false,
+    honorarios: { modo: "percentual_custos", percentual: 10 },
+    tabelaNotas: TABELA_NOTAS_2025,
+    tabelaSri: TABELA_SRI_2025,
+    faixasCustasJudiciais: FAIXAS_CUSTAS_JUDICIAIS,
+    catalogo: escritura.catalogo,
+  });
+
+  const outras = r.linhas.filter((l) => l.chave !== "honorarios");
+  const somaOutras = outras.reduce((s, l) => s + l.valor, 0);
+  const honorarios = r.linhas.find((l) => l.chave === "honorarios")!.valor;
+
+  perto(honorarios, somaOutras * 0.1);
+  perto(r.total, somaOutras + honorarios);
+});

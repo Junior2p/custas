@@ -64,9 +64,16 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
   const aplicavel = (item: ItemCatalogo) =>
     !item.vias || item.vias.length === 0 || item.vias.includes(ctx.via);
 
+  const itens = [...ctx.catalogo].filter(aplicavel).sort((a, b) => a.ordem - b.ordem);
+
+  // Os honorários ficam para o fim: no modo "percentual sobre os custos" eles
+  // incidem sobre todas as outras linhas. Depois voltam para a sua posição.
+  const itemHonorarios = itens.find((i) => i.tipoCalculo === "honorarios");
+  const demais = itens.filter((i) => i.tipoCalculo !== "honorarios");
+
   const linhas: LinhaCusto[] = [];
 
-  for (const item of [...ctx.catalogo].filter(aplicavel).sort((a, b) => a.ordem - b.ordem)) {
+  for (const item of demais) {
     const inclusas = linhas.filter((l) => l.incluso);
     const subtotal = arredondar(inclusas.reduce((s, l) => s + l.valor, 0));
     // Tudo que já foi apurado e é custo de registro — compõe a base dos "Outros Custos".
@@ -88,6 +95,33 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
       origem: manual ? "manual" : "auto",
       incluso: ajuste?.incluso ?? true,
       vinculadoRegistro: item.vinculadoRegistro ?? false,
+    });
+  }
+
+  if (itemHonorarios) {
+    const custosApurados = arredondar(
+      linhas.filter((l) => l.incluso).reduce((s, l) => s + l.valor, 0)
+    );
+    // Embutido incide sobre os custos; os demais modos, sobre o valor transmitido.
+    const base =
+      ctx.honorarios.modo === "percentual_custos" ? custosApurados : bases.totalTransmitido;
+    const bruto = calcularHonorarios(ctx.honorarios, base);
+
+    const ajuste = ctx.ajustes?.[itemHonorarios.chave];
+    const manual = ajuste?.valor !== undefined;
+
+    // Volta para a posição definida na ordem do catálogo.
+    const posicao = demais.filter((i) => i.ordem < itemHonorarios.ordem).length;
+    linhas.splice(posicao, 0, {
+      chave: itemHonorarios.chave,
+      nome: itemHonorarios.nome,
+      valor: arredondar(manual ? ajuste.valor! : bruto.valor),
+      memoria: manual
+        ? `valor ajustado à mão (calculado: ${formatarMoeda(bruto.valor)})`
+        : bruto.memoria,
+      origem: manual ? "manual" : "auto",
+      incluso: ajuste?.incluso ?? true,
+      vinculadoRegistro: false,
     });
   }
 
@@ -140,11 +174,6 @@ function resolverItem(
     item.parametro ? Number(p[item.parametro]) : padrao;
 
   switch (item.tipoCalculo) {
-    case "honorarios": {
-      const r = calcularHonorarios(ctx.honorarios, bases.totalTransmitido);
-      return { valor: r.valor, memoria: r.memoria };
-    }
-
     case "imposto": {
       const valor = arredondar(bases.imposto + bases.multa);
       const memoria = ctx.aplicarMulta

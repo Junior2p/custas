@@ -5,7 +5,7 @@
 // Tudo isso vira registro editável no banco (tabelas `tipos_servico`
 // e `catalogo_custos`) — aqui é a carga inicial.
 // ============================================================
-import type { ItemCatalogo, Via } from "@/lib/calculo/tipos";
+import type { ConfigHonorarios, ItemCatalogo, Via } from "@/lib/calculo/tipos";
 
 export type DefinicaoServico = {
   chave: string;
@@ -19,6 +19,12 @@ export type DefinicaoServico = {
   vias: Via[];
   /** Ação correspondente na Tabela OAB. */
   acaoOab?: string;
+  /** Como o serviço cobra honorários por padrão. */
+  honorariosPadrao: ConfigHonorarios;
+  /** Checklist ✅/❌ que vai na proposta deste serviço. */
+  itensProposta: { descricao: string; incluso: boolean }[];
+  /** Frase de abertura da proposta — cada serviço tem a sua concordância. */
+  textoProposta: string;
   /** Aparece na tela — registra premissas que o Junior deve confirmar. */
   observacao?: string;
   catalogo: ItemCatalogo[];
@@ -33,6 +39,17 @@ const HONORARIOS: ItemCatalogo = {
   nome: "Honorários Advocatícios",
   tipoCalculo: "honorarios",
   ordem: 10,
+};
+
+/**
+ * Honorários embutidos: não são cobrados como item destacado, entram como
+ * percentual sobre os demais custos. Por isso ficam no fim da lista.
+ */
+const HONORARIOS_EMBUTIDOS: ItemCatalogo = {
+  chave: "honorarios",
+  nome: "Honorários (embutidos)",
+  tipoCalculo: "honorarios",
+  ordem: 90,
 };
 
 const imposto = (nome: string): ItemCatalogo => ({
@@ -117,12 +134,47 @@ const COM_IMOVEIS = [CERTIDAO_PREVIA, REGISTRO_SRI, CERTIDAO_POS_REGISTRO];
 const CUSTAS_AMBAS = [CUSTAS_JUDICIAIS, CUSTAS_CARTORIO];
 
 // ------------------------------------------------------------
+// Checklists da proposta
+// ------------------------------------------------------------
+
+const PROPOSTA_INVENTARIO = [
+  { descricao: "Honorários Advocatícios", incluso: true },
+  { descricao: "Custas Processuais / Extrajudiciais", incluso: true },
+  { descricao: "Toda documentação necessária (certidões dos imóveis)", incluso: true },
+  { descricao: "Imposto de Transmissão Causa Mortis e Doação — ITCMD", incluso: true },
+  { descricao: "Registro da Partilha em nome dos herdeiros", incluso: true },
+  { descricao: "Impostos atrasados (ex.: IPTU / IPVA)", incluso: false },
+  { descricao: "Transferência de veículos junto ao DETRAN", incluso: false },
+];
+
+// Sem linha de honorários: eles entram embutidos no valor do serviço.
+const PROPOSTA_ESCRITURA = [
+  { descricao: "Elaboração e lavratura da Escritura Pública", incluso: true },
+  { descricao: "Custas do Tabelionato de Notas", incluso: true },
+  { descricao: "Toda documentação necessária (certidões dos imóveis)", incluso: true },
+  { descricao: "Imposto de Transmissão de Bens Imóveis — ITBI", incluso: true },
+  { descricao: "Registro do imóvel em nome do comprador", incluso: true },
+  { descricao: "Impostos atrasados (ex.: IPTU)", incluso: false },
+  { descricao: "Débitos e ônus anteriores à escritura", incluso: false },
+];
+
+const PROPOSTA_GENERICA = [
+  { descricao: "Honorários Advocatícios", incluso: true },
+  { descricao: "Custas Processuais / Extrajudiciais", incluso: true },
+  { descricao: "Toda documentação necessária (certidões)", incluso: true },
+  { descricao: "Registro do imóvel", incluso: true },
+  { descricao: "Impostos atrasados (ex.: IPTU / IPVA)", incluso: false },
+];
+
+// ------------------------------------------------------------
 // Serviços
 // ------------------------------------------------------------
 
 export const SERVICOS: DefinicaoServico[] = [
   {
     chave: "inventario_consensual",
+    textoProposta:
+      "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Inventário de:",
     nome: "Inventário Consensual",
     nomeImposto: "ITCMD",
     impostoAliquota: 4,
@@ -130,6 +182,8 @@ export const SERVICOS: DefinicaoServico[] = [
     temPartilha: true,
     vias: ["judicial", "extrajudicial"],
     acaoOab: "Inventário Consensual",
+    honorariosPadrao: { modo: "tabela", percentual: 8, valorMinimo: 4354.77 },
+    itensProposta: PROPOSTA_INVENTARIO,
     catalogo: [
       HONORARIOS,
       imposto("ITCMD"),
@@ -142,6 +196,8 @@ export const SERVICOS: DefinicaoServico[] = [
   },
   {
     chave: "inventario_litigioso",
+    textoProposta:
+      "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Inventário de:",
     nome: "Inventário Litigioso",
     nomeImposto: "ITCMD",
     impostoAliquota: 4,
@@ -149,6 +205,8 @@ export const SERVICOS: DefinicaoServico[] = [
     temPartilha: true,
     vias: ["judicial"],
     acaoOab: "Inventário Litigioso",
+    honorariosPadrao: { modo: "tabela", percentual: 10, valorMinimo: 4354.77 },
+    itensProposta: PROPOSTA_INVENTARIO,
     catalogo: [
       HONORARIOS,
       imposto("ITCMD"),
@@ -161,16 +219,30 @@ export const SERVICOS: DefinicaoServico[] = [
   },
   {
     chave: "escritura",
+    textoProposta:
+      "Conforme solicitado, apresento a proposta para a realização dos serviços referente à Escritura de Compra e Venda de:",
     nome: "Escritura de Compra e Venda",
     nomeImposto: "ITBI",
     impostoAliquota: 3,
     temHerdeiros: false,
     temPartilha: false,
     vias: ["extrajudicial"],
-    catalogo: [imposto("ITBI"), ...COM_IMOVEIS, CUSTAS_CARTORIO, OUTROS_CUSTOS],
+    honorariosPadrao: { modo: "percentual_custos", percentual: 10 },
+    itensProposta: PROPOSTA_ESCRITURA,
+    observacao:
+      "Honorários embutidos: 10% sobre os demais custos, sem cobrança destacada na proposta.",
+    catalogo: [
+      imposto("ITBI"),
+      ...COM_IMOVEIS,
+      CUSTAS_CARTORIO,
+      OUTROS_CUSTOS,
+      HONORARIOS_EMBUTIDOS,
+    ],
   },
   {
     chave: "usucapiao",
+    textoProposta:
+      "Conforme solicitado, apresento a proposta para a realização dos serviços referente à Ação de Usucapião de:",
     nome: "Usucapião",
     nomeImposto: null,
     impostoAliquota: 0,
@@ -178,12 +250,16 @@ export const SERVICOS: DefinicaoServico[] = [
     temPartilha: false,
     vias: ["judicial", "extrajudicial"],
     acaoOab: "Usucapião",
+    honorariosPadrao: { modo: "tabela", percentual: 20, valorMinimo: 4354.77 },
+    itensProposta: PROPOSTA_GENERICA,
     observacao:
       "Sem imposto de transmissão — a aquisição por usucapião é originária. Se o caso exigir recolhimento, ligue o imposto na parametrização.",
     catalogo: [HONORARIOS, ...COM_IMOVEIS, ...CUSTAS_AMBAS, OUTROS_CUSTOS],
   },
   {
     chave: "divorcio_consensual",
+    textoProposta:
+      "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Divórcio de:",
     nome: "Divórcio Consensual",
     nomeImposto: null,
     impostoAliquota: 0,
@@ -191,12 +267,16 @@ export const SERVICOS: DefinicaoServico[] = [
     temPartilha: true,
     vias: ["judicial", "extrajudicial"],
     acaoOab: "Divórcio Consensual",
+    honorariosPadrao: { modo: "tabela", percentual: 6, valorMinimo: 5598.99 },
+    itensProposta: PROPOSTA_GENERICA,
     observacao:
       "A partilha igualitária não recolhe imposto. Havendo excesso de meação, o ITCMD incide só sobre o excesso — ligue o imposto e ajuste a base.",
     catalogo: [HONORARIOS, ...COM_IMOVEIS, ...CUSTAS_AMBAS, OUTROS_CUSTOS],
   },
   {
     chave: "divorcio_litigioso",
+    textoProposta:
+      "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Divórcio de:",
     nome: "Divórcio Litigioso",
     nomeImposto: null,
     impostoAliquota: 0,
@@ -204,12 +284,16 @@ export const SERVICOS: DefinicaoServico[] = [
     temPartilha: true,
     vias: ["judicial"],
     acaoOab: "Divórcio Litigioso",
+    honorariosPadrao: { modo: "tabela", percentual: 8, valorMinimo: 8709.53 },
+    itensProposta: PROPOSTA_GENERICA,
     observacao:
       "A partilha igualitária não recolhe imposto. Havendo excesso de meação, o ITCMD incide só sobre o excesso.",
     catalogo: [HONORARIOS, ...COM_IMOVEIS, CUSTAS_JUDICIAIS, OUTROS_CUSTOS],
   },
   {
     chave: "alvara_judicial",
+    textoProposta:
+      "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Alvará Judicial de:",
     nome: "Alvará Judicial",
     nomeImposto: null,
     impostoAliquota: 0,
@@ -217,6 +301,8 @@ export const SERVICOS: DefinicaoServico[] = [
     temPartilha: true,
     vias: ["judicial"],
     acaoOab: "Alvará judicial",
+    honorariosPadrao: { modo: "tabela", percentual: 20, valorMinimo: 2206.06 },
+    itensProposta: PROPOSTA_GENERICA,
     observacao:
       "Base de cálculo = valor do bem ou numerário a levantar. Ligue o ITCMD se o alvará envolver transmissão causa mortis.",
     catalogo: [HONORARIOS, CERTIDOES_PESSOAIS, CUSTAS_JUDICIAIS, OUTROS_CUSTOS],
