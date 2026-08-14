@@ -1,123 +1,149 @@
 "use client";
 
 // ============================================================
-// SIMULADOR — versão de trabalho, ainda sem banco.
-// Usa o mesmo motor de cálculo que vai rodar no sistema final
-// (src/lib/calculo), com as tabelas 2025 extraídas da planilha.
+// SIMULADOR — a tela de trabalho da cotação.
+// As cotações são gravadas no navegador (localStorage) e podem ser
+// exportadas/importadas em arquivo, sem depender de banco.
+// O cálculo vem de src/lib/calculo, com as tabelas de 2025.
 // ============================================================
 
-import { useMemo, useState } from "react";
-import { Plus, Printer, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Printer,
+  RotateCcw,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 
-import { calcularOrcamento } from "@/lib/calculo/orcamento";
 import { buscarAcao } from "@/lib/calculo/honorarios";
+import { calcularOrcamento } from "@/lib/calculo/orcamento";
 import { calcularPartilha, type Herdeiro } from "@/lib/calculo/partilha";
-import type {
-  Bem,
-  ConfigHonorarios,
-  ContextoCalculo,
-  FaixaCustasJudiciais,
-  Parametros,
-  Via,
-} from "@/lib/calculo/tipos";
+import type { Bem, ConfigHonorarios, ContextoCalculo, Via } from "@/lib/calculo/tipos";
 import { TABELA_NOTAS_2025, TABELA_SRI_2025, TABELA_OAB } from "@/lib/dados/tabelas-2025";
 import {
   CAMPOS_PARAMETROS,
-  CONDICOES_PADRAO,
   FAIXAS_CUSTAS_JUDICIAIS,
   PARAMETROS_PADRAO,
 } from "@/lib/dados/padroes";
 import { SERVICOS, servicoPorChave } from "@/lib/dados/servicos";
+import { listar, salvar as gravarCotacao } from "@/lib/orcamento/armazenamento";
+import {
+  aplicarServico,
+  bemVazio,
+  novoId,
+  orcamentoNovo,
+  proximoNumero,
+  type Orcamento,
+} from "@/lib/orcamento/modelo";
+import { BarraOrcamentos } from "./BarraOrcamentos";
 import { Proposta } from "./Proposta";
 import { Botao, Campo, Interruptor, Numero, Secao, Selecao, Texto, moeda, percentual } from "./ui";
 
-let sequencia = 0;
-const novoId = () => `id_${++sequencia}`;
+export function Simulador({ apresentacao }: { apresentacao: boolean }) {
+  const [lista, setLista] = useState<Orcamento[]>([]);
+  const [orcamento, setOrcamento] = useState<Orcamento | null>(null);
+  const [referencia, setReferencia] = useState("");
 
-const bemVazio = (): Bem & { id: string } => ({
-  id: novoId(),
-  descricao: "",
-  tipo: "imovel",
-  valorVenal: 0,
-  percentual: 1,
-  registrar: true,
-  qtdCertidoes: 1,
-});
+  // Monta só no cliente: numeração e datas dependem do relógio local,
+  // e o localStorage não existe no servidor.
+  useEffect(() => {
+    const salvos = listar();
+    const inicial = salvos[0] ?? orcamentoNovo(salvos);
+    setLista(salvos);
+    setOrcamento(inicial);
+    setReferencia(JSON.stringify(inicial));
+  }, []);
 
-export function Simulador() {
-  const [tipoServico, setTipoServico] = useState(SERVICOS[0].chave);
-  const [cliente, setCliente] = useState("");
-  const [observacoes, setObservacoes] = useState("");
+  if (!orcamento) {
+    return (
+      <p className="mx-auto max-w-6xl px-4 py-20 text-center text-sm text-texto-suave">
+        Carregando…
+      </p>
+    );
+  }
 
-  const [bens, setBens] = useState<(Bem & { id: string })[]>([
-    { ...bemVazio(), descricao: "Imóvel", valorVenal: 20000 },
-  ]);
-
-  const [herdeiros, setHerdeiros] = useState<Herdeiro[]>([
-    { id: novoId(), nome: "Meeiro(a)", tipo: "meeiro", percentual: 0.5 },
-    { id: novoId(), nome: "Herdeiro 1", tipo: "herdeiro", percentual: 0.5 },
-    { id: novoId(), nome: "Herdeiro 2", tipo: "herdeiro", percentual: 0.5 },
-  ]);
-
-  const [honorariosModo, setHonorariosModo] = useState<ConfigHonorarios["modo"]>(
-    SERVICOS[0].honorariosPadrao.modo
+  return (
+    <Cotacao
+      key={orcamento.id}
+      orcamento={orcamento}
+      lista={lista}
+      referencia={referencia}
+      apresentacao={apresentacao}
+      setOrcamento={setOrcamento}
+      setLista={setLista}
+      setReferencia={setReferencia}
+    />
   );
-  const [honorariosValor, setHonorariosValor] = useState(2000);
-  const [honorariosPercentual, setHonorariosPercentual] = useState(8);
-  const [honorariosPercentualCustos, setHonorariosPercentualCustos] = useState(10);
-  const [acaoOab, setAcaoOab] = useState(SERVICOS[0].acaoOab ?? TABELA_OAB[0].acao);
+}
 
-  const [aplicarMulta, setAplicarMulta] = useState(false);
-  const [rateio, setRateio] = useState<"por_quinhao" | "igualitario">("por_quinhao");
+function Cotacao({
+  orcamento: o,
+  lista,
+  referencia,
+  apresentacao,
+  setOrcamento,
+  setLista,
+  setReferencia,
+}: {
+  orcamento: Orcamento;
+  lista: Orcamento[];
+  referencia: string;
+  apresentacao: boolean;
+  setOrcamento: (o: Orcamento) => void;
+  setLista: (l: Orcamento[]) => void;
+  setReferencia: (r: string) => void;
+}) {
+  const [verDetalhamento, setVerDetalhamento] = useState(false);
+  const atualizar = (campos: Partial<Orcamento>) => setOrcamento({ ...o, ...campos });
 
-  // Parametrização — depois vem do banco; aqui já dá para ajustar e ver o efeito.
-  const [parametros, setParametros] = useState<Parametros>(PARAMETROS_PADRAO);
-  const [faixasCustas, setFaixasCustas] =
-    useState<FaixaCustasJudiciais[]>(FAIXAS_CUSTAS_JUDICIAIS);
-  const [aliquotas, setAliquotas] = useState<Record<string, number>>({});
+  const servico = servicoPorChave(o.tipoServico);
+  const via = servico.vias.includes(o.viaEscolhida) ? o.viaEscolhida : servico.vias[0];
+  const qtdHerdeiros = o.herdeiros.filter((h) => h.tipo === "herdeiro").length;
+  const impostoAliquota = o.aliquotaImposto ?? servico.impostoAliquota;
+  const temAlteracoes = JSON.stringify(o) !== referencia;
 
-  const [valorNegociado, setValorNegociado] = useState(0);
-  const [viaEscolhida, setViaEscolhida] = useState<Via>("extrajudicial");
-  const [itensProposta, setItensProposta] = useState(SERVICOS[0].itensProposta);
-  const [entrada, setEntrada] = useState(CONDICOES_PADRAO.entradaPercentual);
-  const [parcelas, setParcelas] = useState(CONDICOES_PADRAO.parcelas);
-
-  const servico = servicoPorChave(tipoServico);
-  const impostoAliquota = aliquotas[servico.chave] ?? servico.impostoAliquota;
-  const qtdHerdeiros = herdeiros.filter((h) => h.tipo === "herdeiro").length;
-
-  // A via escolhida precisa existir no serviço (escritura só tem cartório, p. ex.).
-  const via = servico.vias.includes(viaEscolhida) ? viaEscolhida : servico.vias[0];
-
+  // ---------- cálculo ----------
   const honorarios: ConfigHonorarios = useMemo(() => {
-    if (honorariosModo === "fixo") return { modo: "fixo", valor: honorariosValor };
-    if (honorariosModo === "percentual")
-      return { modo: "percentual", percentual: honorariosPercentual };
-    if (honorariosModo === "percentual_custos")
-      return { modo: "percentual_custos", percentual: honorariosPercentualCustos };
-    const acao = buscarAcao(TABELA_OAB, acaoOab) ?? TABELA_OAB[0];
+    if (o.honorariosModo === "fixo") return { modo: "fixo", valor: o.honorariosValor };
+    if (o.honorariosModo === "percentual")
+      return { modo: "percentual", percentual: o.honorariosPercentual };
+    if (o.honorariosModo === "percentual_custos")
+      return { modo: "percentual_custos", percentual: o.honorariosPercentualCustos };
+    const acao = buscarAcao(TABELA_OAB, o.acaoOab) ?? TABELA_OAB[0];
     return { modo: "tabela", percentual: acao.percentual, valorMinimo: acao.valorMinimo };
   }, [
-    honorariosModo,
-    honorariosValor,
-    honorariosPercentual,
-    honorariosPercentualCustos,
-    acaoOab,
+    o.honorariosModo,
+    o.honorariosValor,
+    o.honorariosPercentual,
+    o.honorariosPercentualCustos,
+    o.acaoOab,
   ]);
 
   const contextoBase = useMemo(
     (): Omit<ContextoCalculo, "via"> => ({
-      bens,
+      bens: o.bens,
       qtdHerdeiros: servico.temHerdeiros ? qtdHerdeiros : 0,
-      parametros: { ...parametros, impostoAliquota },
-      aplicarMulta,
+      parametros: { ...o.parametros, impostoAliquota },
+      aplicarMulta: o.aplicarMulta,
       honorarios,
       tabelaNotas: TABELA_NOTAS_2025,
       tabelaSri: TABELA_SRI_2025,
-      faixasCustasJudiciais: faixasCustas,
+      faixasCustasJudiciais: o.faixasCustas,
       catalogo: servico.catalogo,
     }),
-    [bens, servico, qtdHerdeiros, parametros, impostoAliquota, aplicarMulta, honorarios, faixasCustas]
+    [
+      o.bens,
+      o.parametros,
+      o.aplicarMulta,
+      o.faixasCustas,
+      servico,
+      qtdHerdeiros,
+      impostoAliquota,
+      honorarios,
+    ]
   );
 
   const judicial = useMemo(
@@ -129,71 +155,102 @@ export function Simulador() {
     [contextoBase]
   );
 
-  const resultadoEscolhido = via === "judicial" ? judicial : extrajudicial;
-  const totalProposta = valorNegociado > 0 ? valorNegociado : resultadoEscolhido.total;
+  const resultado = via === "judicial" ? judicial : extrajudicial;
+  const totalProposta = o.valorNegociado > 0 ? o.valorNegociado : resultado.total;
 
   const partilha = useMemo(
     () =>
-      calcularPartilha(bens, herdeiros, {
-        rateioCustos: rateio,
+      calcularPartilha(o.bens, o.herdeiros, {
+        rateioCustos: o.rateio,
         custoTotal: totalProposta,
       }),
-    [bens, herdeiros, rateio, totalProposta]
+    [o.bens, o.herdeiros, o.rateio, totalProposta]
   );
 
-  // ---------- manipulação de listas ----------
-  const alterarBem = (id: string, campo: Partial<Bem>) =>
-    setBens((atual) => atual.map((b) => (b.id === id ? { ...b, ...campo } : b)));
+  // ---------- cotações ----------
+  function trocarPara(registro: Orcamento) {
+    setOrcamento(registro);
+    setReferencia(JSON.stringify(registro));
+  }
 
-  const alterarHerdeiro = (id: string, campo: Partial<Herdeiro>) =>
-    setHerdeiros((atual) => atual.map((h) => (h.id === id ? { ...h, ...campo } : h)));
+  function guardar() {
+    const nova = gravarCotacao(o);
+    setLista(nova);
+    const gravado = nova.find((x) => x.id === o.id)!;
+    setOrcamento(gravado);
+    setReferencia(JSON.stringify(gravado));
+  }
 
-  const distribuirIgualmente = () => {
-    const sucessores = herdeiros.filter((h) => h.tipo === "herdeiro");
-    if (sucessores.length === 0) return;
+  function abrir(id: string) {
+    const alvo = lista.find((x) => x.id === id);
+    if (!alvo) return;
+    if (temAlteracoes && !confirm("Há alterações não salvas. Abrir outra cotação mesmo assim?"))
+      return;
+    trocarPara(alvo);
+  }
+
+  function duplicar() {
+    const agora = new Date().toISOString();
+    trocarPara({
+      ...o,
+      id: novoId(),
+      numero: proximoNumero(lista),
+      cliente: o.cliente ? `${o.cliente} (cópia)` : "",
+      status: "rascunho",
+      criadoEm: agora,
+      atualizadoEm: agora,
+    });
+  }
+
+  // ---------- listas ----------
+  const alterarBem = (id: string, campos: Partial<Bem>) =>
+    atualizar({ bens: o.bens.map((b) => (b.id === id ? { ...b, ...campos } : b)) });
+
+  const alterarHerdeiro = (id: string, campos: Partial<Herdeiro>) =>
+    atualizar({ herdeiros: o.herdeiros.map((h) => (h.id === id ? { ...h, ...campos } : h)) });
+
+  function distribuirIgualmente() {
+    const sucessores = o.herdeiros.filter((h) => h.tipo === "herdeiro");
+    if (!sucessores.length) return;
     const fatia = 1 / sucessores.length;
-    setHerdeiros((atual) =>
-      atual.map((h) => (h.tipo === "herdeiro" ? { ...h, percentual: fatia } : h))
-    );
-  };
+    atualizar({
+      herdeiros: o.herdeiros.map((h) => (h.tipo === "herdeiro" ? { ...h, percentual: fatia } : h)),
+    });
+  }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      {/* ---------------- cabeçalho ---------------- */}
-      <header className="sem-impressao mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold tracking-[0.2em] text-dourado uppercase">
-            Escritório Edmilson Lopes Junior
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold text-marinho">
-            Custas, Escrituração e Honorários
-          </h1>
-          <p className="mt-1 text-sm text-texto-suave">
-            Simulador com as tabelas de Notas e Registro de Imóveis de 2025.
-          </p>
-        </div>
-        <Botao onClick={() => window.print()}>
-          <Printer size={16} /> Imprimir proposta
-        </Botao>
-      </header>
-
+    <div className="mx-auto max-w-6xl px-4 pt-5 pb-10">
       <div className="sem-impressao space-y-5">
+        {!apresentacao && (
+          <BarraOrcamentos
+            lista={lista}
+            atual={o}
+            temAlteracoes={temAlteracoes}
+            aoAbrir={abrir}
+            aoNovo={() => trocarPara(orcamentoNovo(lista, o.tipoServico))}
+            aoSalvar={guardar}
+            aoDuplicar={duplicar}
+            aoTrocarLista={(nova, selecionar) => {
+              setLista(nova);
+              trocarPara(selecionar ?? orcamentoNovo(nova));
+            }}
+          />
+        )}
+
         {/* ---------------- serviço e cliente ---------------- */}
-        <Secao titulo="Serviço e cliente">
+        <Secao
+          titulo="Serviço e cliente"
+          acao={
+            <span className="text-xs text-texto-suave">
+              Cotação <strong className="text-marinho">{o.numero}</strong>
+            </span>
+          }
+        >
           <div className="grid gap-4 sm:grid-cols-3">
             <Campo rotulo="Tipo de serviço">
               <Selecao
-                value={tipoServico}
-                onChange={(e) => {
-                  const novo = servicoPorChave(e.target.value);
-                  setTipoServico(novo.chave);
-                  if (novo.acaoOab) setAcaoOab(novo.acaoOab);
-                  setHonorariosModo(novo.honorariosPadrao.modo);
-                  if (novo.honorariosPadrao.modo === "percentual_custos") {
-                    setHonorariosPercentualCustos(novo.honorariosPadrao.percentual);
-                  }
-                  setItensProposta(novo.itensProposta);
-                }}
+                value={o.tipoServico}
+                onChange={(e) => setOrcamento(aplicarServico(o, e.target.value))}
               >
                 {SERVICOS.map((sv) => (
                   <option key={sv.chave} value={sv.chave}>
@@ -204,14 +261,14 @@ export function Simulador() {
             </Campo>
             <Campo rotulo="Cliente" className="sm:col-span-2">
               <Texto
-                value={cliente}
-                onChange={(e) => setCliente(e.target.value)}
+                value={o.cliente}
+                onChange={(e) => atualizar({ cliente: e.target.value })}
                 placeholder="Nome do cliente / do espólio"
               />
             </Campo>
           </div>
 
-          {servico.observacao && (
+          {servico.observacao && !apresentacao && (
             <p className="mt-4 rounded-lg bg-marinho-50 px-3 py-2 text-xs text-marinho">
               {servico.observacao}
             </p>
@@ -223,7 +280,10 @@ export function Simulador() {
           titulo="Bens"
           descricao="Valor venal e a fração que entra na transmissão."
           acao={
-            <Botao variante="secundario" onClick={() => setBens((a) => [...a, bemVazio()])}>
+            <Botao
+              variante="secundario"
+              onClick={() => atualizar({ bens: [...o.bens, bemVazio()] })}
+            >
               <Plus size={15} /> Bem
             </Botao>
           }
@@ -243,7 +303,7 @@ export function Simulador() {
                 </tr>
               </thead>
               <tbody>
-                {bens.map((bem) => (
+                {o.bens.map((bem) => (
                   <tr key={bem.id} className="border-b border-borda/60">
                     <td className="py-2 pr-2">
                       <Texto
@@ -297,7 +357,7 @@ export function Simulador() {
                     <td className="py-2 text-right">
                       <Botao
                         variante="fantasma"
-                        onClick={() => setBens((a) => a.filter((b) => b.id !== bem.id))}
+                        onClick={() => atualizar({ bens: o.bens.filter((b) => b.id !== bem.id) })}
                         aria-label="Remover bem"
                       >
                         <Trash2 size={15} />
@@ -312,7 +372,7 @@ export function Simulador() {
                     Total
                   </td>
                   <td className="pt-3 text-right tabular-nums text-marinho">
-                    {moeda(judicial.bases.totalTransmitido)}
+                    {moeda(resultado.bases.totalTransmitido)}
                   </td>
                   <td />
                 </tr>
@@ -334,15 +394,17 @@ export function Simulador() {
                 <Botao
                   variante="secundario"
                   onClick={() =>
-                    setHerdeiros((a) => [
-                      ...a,
-                      {
-                        id: novoId(),
-                        nome: `Herdeiro ${a.filter((h) => h.tipo === "herdeiro").length + 1}`,
-                        tipo: "herdeiro",
-                        percentual: 0,
-                      },
-                    ])
+                    atualizar({
+                      herdeiros: [
+                        ...o.herdeiros,
+                        {
+                          id: novoId(),
+                          nome: `Herdeiro ${qtdHerdeiros + 1}`,
+                          tipo: "herdeiro",
+                          percentual: 0,
+                        },
+                      ],
+                    })
                   }
                 >
                   <Plus size={15} /> Herdeiro
@@ -351,8 +413,11 @@ export function Simulador() {
             }
           >
             <div className="space-y-2">
-              {herdeiros.map((h) => (
-                <div key={h.id} className="grid grid-cols-[1fr_140px_110px_1fr_40px] items-center gap-2">
+              {o.herdeiros.map((h) => (
+                <div
+                  key={h.id}
+                  className="grid grid-cols-[1fr_140px_110px_1fr_40px] items-center gap-2"
+                >
                   <Texto
                     value={h.nome}
                     onChange={(e) => alterarHerdeiro(h.id, { nome: e.target.value })}
@@ -375,7 +440,9 @@ export function Simulador() {
                   </span>
                   <Botao
                     variante="fantasma"
-                    onClick={() => setHerdeiros((a) => a.filter((x) => x.id !== h.id))}
+                    onClick={() =>
+                      atualizar({ herdeiros: o.herdeiros.filter((x) => x.id !== h.id) })
+                    }
                     aria-label="Remover"
                   >
                     <Trash2 size={15} />
@@ -397,119 +464,175 @@ export function Simulador() {
           </Secao>
         )}
 
-        {/* ---------------- honorários e opções ---------------- */}
-        <div className="grid gap-5 lg:grid-cols-2">
-          {servico.catalogo.some((i) => i.chave === "honorarios") && (
-            <Secao titulo="Honorários">
-              <div className="space-y-4">
-                <Campo rotulo="Como calcular">
-                  <Selecao
-                    value={honorariosModo}
-                    onChange={(e) =>
-                      setHonorariosModo(e.target.value as ConfigHonorarios["modo"])
-                    }
-                  >
-                    <option value="fixo">Valor fixo</option>
-                    <option value="tabela">Tabela OAB</option>
-                    <option value="percentual">% sobre o valor do bem</option>
-                    <option value="percentual_custos">
-                      % sobre os custos (embutido)
-                    </option>
-                  </Selecao>
-                </Campo>
+        {/* ---------------- honorários e condições (uso interno) ---------------- */}
+        {!apresentacao && (
+          <div className="grid gap-5 lg:grid-cols-2">
+            {servico.catalogo.some((i) => i.chave === "honorarios") && (
+              <Secao titulo="Honorários">
+                <div className="space-y-4">
+                  <Campo rotulo="Como calcular">
+                    <Selecao
+                      value={o.honorariosModo}
+                      onChange={(e) =>
+                        atualizar({ honorariosModo: e.target.value as ConfigHonorarios["modo"] })
+                      }
+                    >
+                      <option value="fixo">Valor fixo</option>
+                      <option value="tabela">Tabela OAB</option>
+                      <option value="percentual">% sobre o valor do bem</option>
+                      <option value="percentual_custos">% sobre os custos (embutido)</option>
+                    </Selecao>
+                  </Campo>
 
-                {honorariosModo === "fixo" && (
-                  <Campo rotulo="Valor">
-                    <Numero valor={honorariosValor} aoMudar={setHonorariosValor} />
-                  </Campo>
-                )}
-                {honorariosModo === "percentual" && (
-                  <Campo rotulo="Percentual sobre o valor transmitido">
-                    <Numero valor={honorariosPercentual} aoMudar={setHonorariosPercentual} />
-                  </Campo>
-                )}
-                {honorariosModo === "percentual_custos" && (
+                  {o.honorariosModo === "fixo" && (
+                    <Campo rotulo="Valor">
+                      <Numero
+                        valor={o.honorariosValor}
+                        aoMudar={(v) => atualizar({ honorariosValor: v })}
+                      />
+                    </Campo>
+                  )}
+                  {o.honorariosModo === "percentual" && (
+                    <Campo rotulo="Percentual sobre o valor transmitido">
+                      <Numero
+                        valor={o.honorariosPercentual}
+                        aoMudar={(v) => atualizar({ honorariosPercentual: v })}
+                      />
+                    </Campo>
+                  )}
+                  {o.honorariosModo === "percentual_custos" && (
+                    <Campo
+                      rotulo="Percentual sobre os custos do serviço"
+                      dica="Incide sobre todas as demais linhas apuradas. Não aparece destacado na proposta."
+                    >
+                      <Numero
+                        valor={o.honorariosPercentualCustos}
+                        aoMudar={(v) => atualizar({ honorariosPercentualCustos: v })}
+                      />
+                    </Campo>
+                  )}
+                  {o.honorariosModo === "tabela" && (
+                    <Campo rotulo="Ação" dica="A tabela aplica o percentual e respeita o piso.">
+                      <Selecao
+                        value={o.acaoOab}
+                        onChange={(e) => atualizar({ acaoOab: e.target.value })}
+                      >
+                        {TABELA_OAB.map((a) => (
+                          <option key={a.acao} value={a.acao}>
+                            {a.acao} — {percentual(a.percentual)} · mín. {moeda(a.valorMinimo)}
+                          </option>
+                        ))}
+                      </Selecao>
+                    </Campo>
+                  )}
+                </div>
+              </Secao>
+            )}
+
+            <Secao titulo="Condições do cálculo">
+              <div className="space-y-3">
+                {servico.nomeImposto ? (
                   <Campo
-                    rotulo="Percentual sobre os custos do serviço"
-                    dica="Incide sobre todas as demais linhas apuradas. Não aparece destacado na proposta — entra no valor do serviço."
+                    rotulo={`Alíquota do ${servico.nomeImposto}`}
+                    dica="Vale só para esta cotação."
                   >
                     <Numero
-                      valor={honorariosPercentualCustos}
-                      aoMudar={setHonorariosPercentualCustos}
+                      valor={impostoAliquota}
+                      aoMudar={(v) => atualizar({ aliquotaImposto: v })}
                     />
                   </Campo>
+                ) : (
+                  <p className="text-xs text-texto-suave">
+                    Este serviço não recolhe imposto de transmissão.
+                  </p>
                 )}
-                {honorariosModo === "tabela" && (
-                  <Campo rotulo="Ação" dica="A tabela aplica o percentual e respeita o piso.">
-                    <Selecao value={acaoOab} onChange={(e) => setAcaoOab(e.target.value)}>
-                      {TABELA_OAB.map((a) => (
-                        <option key={a.acao} value={a.acao}>
-                          {a.acao} — {percentual(a.percentual)} · mín. {moeda(a.valorMinimo)}
-                        </option>
-                      ))}
+
+                {servico.nomeImposto && (
+                  <Interruptor
+                    rotulo={`Aplicar multa sobre o ${servico.nomeImposto}`}
+                    dica={`${o.parametros.multaPercentual}% para recolhimento em atraso.`}
+                    ativo={o.aplicarMulta}
+                    aoMudar={(v) => atualizar({ aplicarMulta: v })}
+                  />
+                )}
+
+                {servico.temHerdeiros && (
+                  <Campo rotulo="Rateio dos custos entre os herdeiros">
+                    <Selecao
+                      value={o.rateio}
+                      onChange={(e) =>
+                        atualizar({ rateio: e.target.value as Orcamento["rateio"] })
+                      }
+                    >
+                      <option value="por_quinhao">Proporcional ao quinhão</option>
+                      <option value="igualitario">Dividido igualmente</option>
                     </Selecao>
                   </Campo>
                 )}
               </div>
             </Secao>
-          )}
+          </div>
+        )}
 
-          <Secao titulo="Condições do cálculo">
-            <div className="space-y-3">
-              {servico.nomeImposto ? (
-                <Campo
-                  rotulo={`Alíquota do ${servico.nomeImposto}`}
-                  dica="Vale só para este serviço."
-                >
-                  <Numero
-                    valor={impostoAliquota}
-                    aoMudar={(v) => setAliquotas((a) => ({ ...a, [servico.chave]: v }))}
-                  />
-                </Campo>
-              ) : (
-                <p className="text-xs text-texto-suave">
-                  Este serviço não recolhe imposto de transmissão.
-                </p>
-              )}
-
-              {servico.nomeImposto && (
-                <Interruptor
-                  rotulo={`Aplicar multa sobre o ${servico.nomeImposto}`}
-                  dica={`${parametros.multaPercentual}% para recolhimento em atraso.`}
-                  ativo={aplicarMulta}
-                  aoMudar={setAplicarMulta}
-                />
-              )}
-
-              {servico.temHerdeiros && (
-                <Campo rotulo="Rateio dos custos entre os herdeiros">
-                  <Selecao
-                    value={rateio}
-                    onChange={(e) => setRateio(e.target.value as typeof rateio)}
-                  >
-                    <option value="por_quinhao">Proporcional ao quinhão</option>
-                    <option value="igualitario">Dividido igualmente</option>
-                  </Selecao>
-                </Campo>
-              )}
-            </div>
-          </Secao>
-        </div>
-
-        {/* ---------------- resultado ---------------- */}
+        {/* ---------------- apuração ---------------- */}
         <Secao
           titulo="Apuração"
           descricao={
-            servico.vias.length > 1
-              ? "As duas vias lado a lado. A diferença está na linha de custas."
-              : servico.vias[0] === "judicial"
-                ? "Via judicial."
-                : "Via extrajudicial (cartório)."
+            apresentacao
+              ? "Valor apurado para o serviço."
+              : servico.vias.length > 1
+                ? "As duas vias lado a lado. A diferença está na linha de custas."
+                : servico.vias[0] === "judicial"
+                  ? "Via judicial."
+                  : "Via extrajudicial (cartório)."
+          }
+          acao={
+            apresentacao ? (
+              <Botao variante="fantasma" onClick={() => setVerDetalhamento(!verDetalhamento)}>
+                {verDetalhamento ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                {verDetalhamento ? "Ocultar detalhamento" : "Ver detalhamento"}
+              </Botao>
+            ) : undefined
           }
         >
-          <div className={`grid gap-5 ${servico.vias.length > 1 ? "lg:grid-cols-2" : ""}`}>
-            {servico.vias.map(
-              (viaAtual: Via) => {
+          {apresentacao ? (
+            <>
+              <div className="rounded-lg border border-marinho/20 bg-marinho-50/50 px-5 py-4">
+                <p className="text-xs text-texto-suave">
+                  {via === "judicial" ? "Via judicial" : "Via cartório (extrajudicial)"}
+                </p>
+                <p className="mt-1 text-3xl font-semibold tabular-nums text-marinho">
+                  {moeda(totalProposta)}
+                </p>
+                {qtdHerdeiros > 0 && (
+                  <p className="mt-1 text-xs text-texto-suave">
+                    {moeda(totalProposta / qtdHerdeiros)} por herdeiro ({qtdHerdeiros})
+                  </p>
+                )}
+              </div>
+
+              {verDetalhamento && (
+                <table className="mt-4 w-full text-sm">
+                  <tbody>
+                    {resultado.linhas
+                      .filter((l) => l.incluso)
+                      .map((l) => (
+                        <tr key={l.chave} className="border-b border-borda/50">
+                          <td className="py-1.5">{l.nome}</td>
+                          <td className="py-1.5 text-right tabular-nums">{moeda(l.valor)}</td>
+                        </tr>
+                      ))}
+                    <tr className="font-semibold text-marinho">
+                      <td className="pt-2.5">TOTAL APURADO</td>
+                      <td className="pt-2.5 text-right tabular-nums">{moeda(resultado.total)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+            </>
+          ) : (
+            <div className={`grid gap-5 ${servico.vias.length > 1 ? "lg:grid-cols-2" : ""}`}>
+              {servico.vias.map((viaAtual: Via) => {
                 const r = viaAtual === "judicial" ? judicial : extrajudicial;
                 const selecionada = via === viaAtual;
                 return (
@@ -529,7 +652,7 @@ export function Simulador() {
                             type="radio"
                             name="via"
                             checked={selecionada}
-                            onChange={() => setViaEscolhida(viaAtual)}
+                            onChange={() => atualizar({ viaEscolhida: viaAtual })}
                             className="accent-[var(--marinho)]"
                           />
                           usar na proposta
@@ -574,17 +697,14 @@ export function Simulador() {
                     </table>
                   </div>
                 );
-              }
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </Secao>
 
-        {/* ---------------- partilha ---------------- */}
-        {servico.temPartilha && herdeiros.length > 0 && (
-          <Secao
-            titulo="Cotas-partes"
-            descricao="Quinhão de cada um e o custo do serviço rateado."
-          >
+        {/* ---------------- cotas-partes ---------------- */}
+        {servico.temPartilha && o.herdeiros.length > 0 && (
+          <Secao titulo="Cotas-partes" descricao="Quinhão de cada um e o custo do serviço rateado.">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
                 <thead>
@@ -604,12 +724,16 @@ export function Simulador() {
                       <td className="py-2 text-texto-suave">
                         {p.tipo === "meeiro" ? "Meeiro(a)" : "Herdeiro(a)"}
                       </td>
-                      <td className="py-2 text-right tabular-nums">{percentual(p.percentualTotal)}</td>
+                      <td className="py-2 text-right tabular-nums">
+                        {percentual(p.percentualTotal)}
+                      </td>
                       <td className="py-2 text-right tabular-nums">{moeda(p.valor)}</td>
                       <td className="py-2 text-right tabular-nums text-erro">
                         −{moeda(p.custoRateado)}
                       </td>
-                      <td className="py-2 text-right font-medium tabular-nums">{moeda(p.liquido)}</td>
+                      <td className="py-2 text-right font-medium tabular-nums">
+                        {moeda(p.liquido)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -632,107 +756,131 @@ export function Simulador() {
           </Secao>
         )}
 
-        {/* ---------------- parametrização ---------------- */}
-        <Secao
-          titulo="Parametrização"
-          descricao="Valores de referência do cálculo. Aqui é provisório — vira a tela de Parametrização, gravada no banco."
-          acao={
-            <Botao
-              variante="secundario"
-              onClick={() => {
-                setParametros(PARAMETROS_PADRAO);
-                setFaixasCustas(FAIXAS_CUSTAS_JUDICIAIS);
-                setAliquotas({});
-              }}
-            >
-              <RotateCcw size={15} /> Restaurar
-            </Botao>
-          }
-        >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {CAMPOS_PARAMETROS.map((campo) => (
-              <Campo
-                key={campo.chave}
-                rotulo={`${campo.rotulo}${campo.formato === "percentual" ? " (%)" : ""}`}
-                dica={campo.dica}
+        {/* ---------------- parametrização (uso interno) ---------------- */}
+        {!apresentacao && (
+          <Secao
+            titulo="Parametrização"
+            descricao="Gravada junto com a cotação — um orçamento antigo continua mostrando os números com que foi feito."
+            acao={
+              <Botao
+                variante="secundario"
+                onClick={() =>
+                  atualizar({
+                    parametros: { ...PARAMETROS_PADRAO },
+                    faixasCustas: FAIXAS_CUSTAS_JUDICIAIS.map((f) => ({ ...f })),
+                    aliquotaImposto: null,
+                  })
+                }
               >
-                <Numero
-                  valor={parametros[campo.chave]}
-                  aoMudar={(v) => setParametros((a) => ({ ...a, [campo.chave]: v }))}
-                />
-              </Campo>
-            ))}
-          </div>
-
-          <div className="mt-6">
-            <p className="mb-1 text-xs font-medium text-texto-suave">
-              Custas judiciais — degraus em UFESP
-            </p>
-            <p className="mb-3 text-[11px] text-texto-suave">
-              Aplicados sobre o monte-mor / valor da ação. Hoje: {moeda(parametros.ufesp)} por UFESP.
-            </p>
-            <div className="space-y-2">
-              {faixasCustas.map((faixa, i) => (
-                <div
-                  key={faixa.ordem}
-                  className="grid grid-cols-[auto_1fr_auto_1fr_auto_100px_auto] items-center gap-2 text-xs text-texto-suave"
+                <RotateCcw size={15} /> Restaurar
+              </Botao>
+            }
+          >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {CAMPOS_PARAMETROS.map((campo) => (
+                <Campo
+                  key={campo.chave}
+                  rotulo={`${campo.rotulo}${campo.formato === "percentual" ? " (%)" : ""}`}
+                  dica={campo.dica}
                 >
-                  <span>de</span>
                   <Numero
-                    valor={faixa.valorDe}
-                    aoMudar={(v) =>
-                      setFaixasCustas((a) =>
-                        a.map((f, j) => (j === i ? { ...f, valorDe: v } : f))
-                      )
-                    }
+                    valor={o.parametros[campo.chave]}
+                    aoMudar={(v) => atualizar({ parametros: { ...o.parametros, [campo.chave]: v } })}
                   />
-                  <span>até</span>
-                  <Numero
-                    valor={faixa.valorAte ?? 0}
-                    placeholder="sem limite"
-                    aoMudar={(v) =>
-                      setFaixasCustas((a) =>
-                        a.map((f, j) => (j === i ? { ...f, valorAte: v > 0 ? v : null } : f))
-                      )
-                    }
-                  />
-                  <span>=</span>
-                  <Numero
-                    valor={faixa.quantidade}
-                    aoMudar={(v) =>
-                      setFaixasCustas((a) =>
-                        a.map((f, j) => (j === i ? { ...f, quantidade: v } : f))
-                      )
-                    }
-                  />
-                  <span className="whitespace-nowrap">
-                    UFESP = {moeda(faixa.quantidade * parametros.ufesp)}
-                  </span>
-                </div>
+                </Campo>
               ))}
             </div>
-          </div>
-        </Secao>
+
+            <div className="mt-6">
+              <p className="mb-1 text-xs font-medium text-texto-suave">
+                Custas judiciais — degraus em UFESP
+              </p>
+              <p className="mb-3 text-[11px] text-texto-suave">
+                Aplicados sobre o monte-mor / valor da ação. Hoje: {moeda(o.parametros.ufesp)} por
+                UFESP.
+              </p>
+              <div className="space-y-2">
+                {o.faixasCustas.map((faixa, i) => (
+                  <div
+                    key={faixa.ordem}
+                    className="grid grid-cols-[auto_1fr_auto_1fr_auto_100px_auto] items-center gap-2 text-xs text-texto-suave"
+                  >
+                    <span>de</span>
+                    <Numero
+                      valor={faixa.valorDe}
+                      aoMudar={(v) =>
+                        atualizar({
+                          faixasCustas: o.faixasCustas.map((f, j) =>
+                            j === i ? { ...f, valorDe: v } : f
+                          ),
+                        })
+                      }
+                    />
+                    <span>até</span>
+                    <Numero
+                      valor={faixa.valorAte ?? 0}
+                      placeholder="sem limite"
+                      aoMudar={(v) =>
+                        atualizar({
+                          faixasCustas: o.faixasCustas.map((f, j) =>
+                            j === i ? { ...f, valorAte: v > 0 ? v : null } : f
+                          ),
+                        })
+                      }
+                    />
+                    <span>=</span>
+                    <Numero
+                      valor={faixa.quantidade}
+                      aoMudar={(v) =>
+                        atualizar({
+                          faixasCustas: o.faixasCustas.map((f, j) =>
+                            j === i ? { ...f, quantidade: v } : f
+                          ),
+                        })
+                      }
+                    />
+                    <span className="whitespace-nowrap">
+                      UFESP = {moeda(faixa.quantidade * o.parametros.ufesp)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Secao>
+        )}
 
         {/* ---------------- proposta ---------------- */}
         <Secao
           titulo="Proposta ao cliente"
-          descricao="O que o cliente recebe. O valor negociado substitui o apurado."
+          descricao="O que o cliente recebe."
+          acao={
+            <Botao onClick={() => window.print()}>
+              <Printer size={16} /> Imprimir
+            </Botao>
+          }
         >
           <div className="grid gap-4 sm:grid-cols-4">
-            <Campo rotulo="Valor apurado">
-              <div className="rounded-lg border border-borda bg-slate-50 px-3 py-2 text-right text-sm tabular-nums">
-                {moeda(resultadoEscolhido.total)}
-              </div>
-            </Campo>
-            <Campo rotulo="Valor negociado" dica="0 = usar o apurado">
-              <Numero valor={valorNegociado} aoMudar={setValorNegociado} />
+            {!apresentacao && (
+              <Campo rotulo="Valor apurado">
+                <div className="rounded-lg border border-borda bg-slate-50 px-3 py-2 text-right text-sm tabular-nums">
+                  {moeda(resultado.total)}
+                </div>
+              </Campo>
+            )}
+            <Campo
+              rotulo={apresentacao ? "Valor do serviço" : "Valor negociado"}
+              dica={apresentacao ? undefined : "0 = usar o apurado"}
+            >
+              <Numero valor={o.valorNegociado} aoMudar={(v) => atualizar({ valorNegociado: v })} />
             </Campo>
             <Campo rotulo="Entrada (%)">
-              <Numero valor={entrada} aoMudar={setEntrada} />
+              <Numero valor={o.entrada} aoMudar={(v) => atualizar({ entrada: v })} />
             </Campo>
             <Campo rotulo="Parcelas do saldo">
-              <Numero valor={parcelas} aoMudar={(v) => setParcelas(Math.max(1, Math.round(v)))} />
+              <Numero
+                valor={o.parcelas}
+                aoMudar={(v) => atualizar({ parcelas: Math.max(1, Math.round(v)) })}
+              />
             </Campo>
           </div>
 
@@ -741,29 +889,35 @@ export function Simulador() {
               Itens da proposta — marque o que está incluso
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {itensProposta.map((item, i) => (
-                <div key={item.descricao} className="flex items-center gap-2">
+              {o.itensProposta.map((item, i) => (
+                <div key={`item-${i}`} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={item.incluso}
                     onChange={(e) =>
-                      setItensProposta((a) =>
-                        a.map((x, j) => (j === i ? { ...x, incluso: e.target.checked } : x))
-                      )
+                      atualizar({
+                        itensProposta: o.itensProposta.map((x, j) =>
+                          j === i ? { ...x, incluso: e.target.checked } : x
+                        ),
+                      })
                     }
                     className="h-4 w-4 shrink-0 accent-[var(--marinho)]"
                   />
                   <Texto
                     value={item.descricao}
                     onChange={(e) =>
-                      setItensProposta((a) =>
-                        a.map((x, j) => (j === i ? { ...x, descricao: e.target.value } : x))
-                      )
+                      atualizar({
+                        itensProposta: o.itensProposta.map((x, j) =>
+                          j === i ? { ...x, descricao: e.target.value } : x
+                        ),
+                      })
                     }
                   />
                   <Botao
                     variante="fantasma"
-                    onClick={() => setItensProposta((a) => a.filter((_, j) => j !== i))}
+                    onClick={() =>
+                      atualizar({ itensProposta: o.itensProposta.filter((_, j) => j !== i) })
+                    }
                     aria-label="Remover item"
                   >
                     <Trash2 size={15} />
@@ -775,7 +929,9 @@ export function Simulador() {
               variante="secundario"
               className="mt-3"
               onClick={() =>
-                setItensProposta((a) => [...a, { descricao: "Novo item", incluso: true }])
+                atualizar({
+                  itensProposta: [...o.itensProposta, { descricao: "Novo item", incluso: true }],
+                })
               }
             >
               <Plus size={15} /> Item
@@ -784,8 +940,8 @@ export function Simulador() {
 
           <Campo rotulo="Observações" className="mt-5">
             <textarea
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
+              value={o.observacoes}
+              onChange={(e) => atualizar({ observacoes: e.target.value })}
               rows={3}
               placeholder="Ex.: IPTU em aberto dos dois imóveis."
               className="w-full rounded-lg border border-borda bg-white px-3 py-2 text-sm outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/15"
@@ -794,18 +950,17 @@ export function Simulador() {
         </Secao>
       </div>
 
-      {/* ---------------- área de impressão ---------------- */}
       <Proposta
-        cliente={cliente}
+        cliente={o.cliente}
         textoAbertura={servico.textoProposta}
         via={via}
-        bens={bens}
-        itens={itensProposta}
+        bens={o.bens}
+        itens={o.itensProposta}
         total={totalProposta}
-        entradaPercentual={entrada}
-        parcelas={parcelas}
-        validadeDias={CONDICOES_PADRAO.validadeDias}
-        observacoes={observacoes}
+        entradaPercentual={o.entrada}
+        parcelas={o.parcelas}
+        validadeDias={30}
+        observacoes={o.observacoes}
       />
     </div>
   );

@@ -27,13 +27,35 @@ npm run typecheck  # verificação de tipos
 npm run build      # build de produção
 ```
 
+## Como o sistema guarda as cotações
+
+Funciona **sem banco**: cada cotação é gravada no `localStorage` do navegador e a lista
+inteira pode ser **exportada para um arquivo `.json`** e importada de volta (em outra
+máquina, ou como backup). O Supabase é opcional — quando as variáveis de ambiente
+existirem, o login é exigido; sem elas, o sistema abre direto em "modo simulação".
+
+Cada cotação guarda **a própria parametrização** (UFESP, certidões, faixas de custas).
+Assim um orçamento de meses atrás continua mostrando os números com que foi feito, mesmo
+depois de os valores de referência mudarem.
+
+## Modo apresentação
+
+Botão fixo no canto inferior direito. Ligado, esconde tudo que é de uso interno —
+gestão de cotações, honorários, condições do cálculo e parametrização — deixando à
+mostra apenas bens, cotas-partes, o valor do serviço e a proposta. Para usar quando a
+tela é compartilhada com o cliente.
+
 ## Estrutura
 
 ```
 src/
-├── app/                  páginas (App Router)
+├── app/
+│   ├── (app)/            área autenticada
+│   └── auth/login/       tela de acesso
 ├── components/
+│   ├── AreaTrabalho.tsx  alterna o modo apresentação
 │   ├── Simulador.tsx     tela de apuração (bens, herdeiros, custos, proposta)
+│   ├── BarraOrcamentos.tsx  nova/salvar/duplicar/exportar/importar
 │   ├── Proposta.tsx      documento impresso para o cliente
 │   └── ui.tsx            campos, botões e formatadores
 └── lib/
@@ -44,6 +66,7 @@ src/
     │   ├── orcamento.ts      orquestra bens → linhas de custo → totais
     │   ├── partilha.ts       meação, quinhões e rateio de custos
     │   └── calculo.test.ts   testes contra os valores reais da planilha
+    ├── orcamento/        modelo da cotação e armazenamento local (+ testes)
     ├── dados/            carga inicial (tabelas 2025, parâmetros, serviços)
     └── supabase/         clientes de banco (browser e server)
 supabase/
