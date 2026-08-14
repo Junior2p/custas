@@ -1,5 +1,20 @@
 import { arredondar, formatarMoeda } from "./emolumentos";
-import type { ConfigHonorarios } from "./tipos";
+import type { AcaoHonorario, ConfigHonorarios } from "./tipos";
+
+/**
+ * Busca uma ação na Tabela OAB tolerando diferenças de acentuação e caixa.
+ * Os nomes vieram do Excel com acentos decompostos (NFD), que não batem com
+ * os literais escritos no código.
+ */
+export function buscarAcao(
+  tabela: AcaoHonorario[],
+  nome: string | undefined
+): AcaoHonorario | undefined {
+  if (!nome) return undefined;
+  const chave = (s: string) => s.normalize("NFC").trim().toLocaleLowerCase("pt-BR");
+  const alvo = chave(nome);
+  return tabela.find((a) => chave(a.acao) === alvo);
+}
 
 /**
  * Honorários advocatícios em 3 modos.

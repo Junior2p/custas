@@ -34,14 +34,12 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
   const imposto = arredondar(totalTransmitido * (p.impostoAliquota / 100));
   const multa = ctx.aplicarMulta ? arredondar(imposto * (p.multaPercentual / 100)) : 0;
 
-  // Registro no SRI: emolumento por imóvel marcado para registro (+ certidão embutida).
+  // Registro no SRI: emolumento por imóvel marcado para registro.
+  // A certidão posterior ao registro é uma linha própria do catálogo.
   const registro = arredondar(
     ctx.bens
       .filter((b) => b.tipo === "imovel" && b.registrar)
-      .reduce((s, b) => {
-        const base = emolumento(ctx.tabelaSri, valorTransmitidoDoBem(b));
-        return s + base + (p.registroIncluiCertidao ? p.certidaoImovel : 0);
-      }, 0)
+      .reduce((s, b) => s + emolumento(ctx.tabelaSri, valorTransmitidoDoBem(b)), 0)
   );
 
   const custas =
@@ -69,10 +67,14 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
   const linhas: LinhaCusto[] = [];
 
   for (const item of [...ctx.catalogo].filter(aplicavel).sort((a, b) => a.ordem - b.ordem)) {
-    const subtotal = arredondar(
-      linhas.filter((l) => l.incluso).reduce((s, l) => s + l.valor, 0)
+    const inclusas = linhas.filter((l) => l.incluso);
+    const subtotal = arredondar(inclusas.reduce((s, l) => s + l.valor, 0));
+    // Tudo que já foi apurado e é custo de registro — compõe a base dos "Outros Custos".
+    const somaRegistro = arredondar(
+      inclusas.filter((l) => l.vinculadoRegistro).reduce((s, l) => s + l.valor, 0)
     );
-    const bruto = resolverItem(item, ctx, bases, { custas, subtotal });
+
+    const bruto = resolverItem(item, ctx, bases, { custas, subtotal, somaRegistro });
     if (!bruto) continue;
 
     const ajuste = ctx.ajustes?.[item.chave];
@@ -85,6 +87,7 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
       memoria: manual ? `valor ajustado à mão (calculado: ${formatarMoeda(bruto.valor)})` : bruto.memoria,
       origem: manual ? "manual" : "auto",
       incluso: ajuste?.incluso ?? true,
+      vinculadoRegistro: item.vinculadoRegistro ?? false,
     });
   }
 
@@ -96,6 +99,7 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
       memoria: "linha criada no orçamento",
       origem: "manual",
       incluso: extra.incluso ?? true,
+      vinculadoRegistro: false,
     });
   }
 
@@ -104,7 +108,7 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
   );
   const valorRegistroNasLinhas = arredondar(
     linhas
-      .filter((l) => l.incluso && l.chave === "registro_sri")
+      .filter((l) => l.incluso && l.vinculadoRegistro)
       .reduce((s, l) => s + l.valor, 0)
   );
 
@@ -121,6 +125,8 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
 type Derivados = {
   custas: { valor: number; memoria: string };
   subtotal: number;
+  /** Linhas de registro já apuradas até aqui. */
+  somaRegistro: number;
 };
 
 function resolverItem(
@@ -205,6 +211,8 @@ function quantidade(
       return ctx.qtdHerdeiros;
     case "imoveis":
       return bases.qtdImoveis;
+    case "imoveis_registro":
+      return ctx.bens.filter((b) => b.tipo === "imovel" && b.registrar).length;
     case "bens":
       return bases.qtdBens;
     case "certidoes":
@@ -227,7 +235,7 @@ function valorDaBase(
     case "imposto":
       return arredondar(bases.imposto + bases.multa);
     case "custas_registro":
-      return arredondar(derivados.custas.valor + bases.registro);
+      return arredondar(derivados.custas.valor + derivados.somaRegistro);
     case "subtotal":
       return derivados.subtotal;
     default:

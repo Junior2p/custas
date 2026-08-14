@@ -42,7 +42,7 @@ src/
     │   ├── orcamento.ts      orquestra bens → linhas de custo → totais
     │   ├── partilha.ts       meação, quinhões e rateio de custos
     │   └── calculo.test.ts   testes contra os valores reais da planilha
-    ├── dados/            carga inicial (tabelas 2025, parâmetros, catálogo)
+    ├── dados/            carga inicial (tabelas 2025, parâmetros, serviços)
     └── supabase/         clientes de banco (browser e server)
 supabase/
 ├── 01-schema.sql         estrutura do banco
@@ -62,6 +62,10 @@ Os testes conferem os números contra a planilha de origem:
 | Inventário · imóvel R$ 20.000 · 2 herdeiros · via cartório | R$ 6.788,19 ✅ igual à planilha |
 | Escritura · imóvel R$ 400.000 · ITBI 3% | R$ 21.894,49 ✅ igual à planilha |
 | Inventário · mesma base · via judicial | R$ 5.366,02 ⚠️ planilha dava R$ 5.495,31 (bug corrigido) |
+
+**Serviços atendidos** (`src/lib/dados/servicos.ts`): Inventário Consensual e Litigioso,
+Escritura de Compra e Venda, Usucapião, Divórcio Consensual e Litigioso, Alvará Judicial.
+Cada um com seu imposto, catálogo de custos, vias e ação na Tabela OAB.
 
 As divergências são correções intencionais de erros da planilha, listadas em
 `docs/01-ANALISE-PLANILHA.md` (seção 8).

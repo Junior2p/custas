@@ -20,11 +20,10 @@ insert into parametros (chave, rotulo, grupo, tipo, valor, descricao, ordem) val
   ('imposto_itbi',             'Alíquota ITBI',                  'impostos',  'percentual', '3',     'Imposto de transmissão inter vivos', 20),
   ('multa_imposto',            'Multa sobre o imposto',          'impostos',  'percentual', '30',    'Aplicada quando o recolhimento está em atraso', 30),
   ('ufesp',                    'UFESP',                          'custas',    'moeda',      '34.26', 'Unidade Fiscal do Estado de São Paulo — conferir a cada ano', 40),
-  ('certidao_imovel',          'Certidão de imóvel',             'certidoes', 'moeda',      '100',   'Valor unitário cobrado pelo SRI', 50),
+  ('certidao_imovel',          'Certidão de imóvel',             'certidoes', 'moeda',      '100',   'Valor unitário do SRI. Cobrada duas vezes por imóvel: prévia e após o registro', 50),
   ('certidao_testamento',      'Certidão de testamento',         'certidoes', 'moeda',      '70',    'CENSEC', 60),
   ('certidao_pessoal_herdeiro','Certidões pessoais por herdeiro','certidoes', 'moeda',      '100',   'Multiplicado pelo número de herdeiros', 70),
   ('outros_custos_percentual', 'Outros custos',                  'custas',    'percentual', '10',    'Percentual sobre custas + registro', 80),
-  ('registro_inclui_certidao', 'Registro embute certidão',       'certidoes', 'booleano',   'true',  'Fiel à planilha: o registro no SRI soma mais uma certidão do imóvel', 90),
   ('proposta_entrada',         'Entrada da proposta',            'proposta',  'percentual', '50',    'Percentual pago na assinatura', 100),
   ('proposta_parcelas',        'Parcelas do saldo',              'proposta',  'inteiro',    '3',     'Nº de parcelas do valor restante', 110),
   ('proposta_validade_dias',   'Validade da proposta',           'proposta',  'inteiro',    '30',    'Dias de validade', 120)
@@ -123,7 +122,7 @@ on conflict (tabela_id, ordem) do nothing;
 -- ------------------------------------------------------------
 insert into tabela_honorarios (acao, percentual, valor_minimo) values
   ('Usucapião', 20.0, 4354.77),
-  ('Alvará judicial', 20.0, 2206.06),
+  ('Alvará judicial', 20.0, 2206.06),
   ('Divórcio Consensual', 6.0, 5598.99),
   ('Divórcio Litigioso', 8.0, 8709.53),
   ('Inventário Consensual', 8.0, 4354.77),
@@ -138,51 +137,103 @@ insert into faixas_custas_judiciais (ordem, valor_de, valor_ate, base, quantidad
   (3, 500000, null,      'ufesp', 300);
 
 -- ------------------------------------------------------------
--- Tipos de serviço
+-- Tipos de serviço — os que dependem de análise com base no valor
 -- ------------------------------------------------------------
 insert into tipos_servico (chave, nome, imposto, imposto_aliquota, tem_herdeiros, tem_partilha, vias_permitidas, ordem) values
-  ('inventario', 'Inventário', 'itcmd', 4, true,  true,  array['judicial','extrajudicial'], 10),
-  ('escritura',  'Escritura',  'itbi',  3, false, false, array['extrajudicial'],            20)
+  ('inventario_consensual', 'Inventário Consensual',       'itcmd',   4, true,  true,  array['judicial','extrajudicial'], 10),
+  ('inventario_litigioso',  'Inventário Litigioso',        'itcmd',   4, true,  true,  array['judicial'],                 20),
+  ('escritura',             'Escritura de Compra e Venda', 'itbi',    3, false, false, array['extrajudicial'],            30),
+  ('usucapiao',             'Usucapião',                   'nenhum',  0, false, false, array['judicial','extrajudicial'], 40),
+  ('divorcio_consensual',   'Divórcio Consensual',         'nenhum',  0, false, true,  array['judicial','extrajudicial'], 50),
+  ('divorcio_litigioso',    'Divórcio Litigioso',          'nenhum',  0, false, true,  array['judicial'],                 60),
+  ('alvara_judicial',       'Alvará Judicial',             'nenhum',  0, true,  true,  array['judicial'],                 70)
 on conflict (chave) do nothing;
 
+-- Liga cada serviço à sua ação na Tabela OAB
 update tipos_servico ts set acao_honorario_id = th.id
   from tabela_honorarios th
- where ts.chave = 'inventario' and th.acao = 'Inventário Consensual'
-   and ts.acao_honorario_id is null;
+ where ts.acao_honorario_id is null
+   and th.acao = case ts.chave
+     when 'inventario_consensual' then 'Inventário Consensual'
+     when 'inventario_litigioso'  then 'Inventário Litigioso'
+     when 'usucapiao'             then 'Usucapião'
+     when 'divorcio_consensual'   then 'Divórcio Consensual'
+     when 'divorcio_litigioso'    then 'Divórcio Litigioso'
+     when 'alvara_judicial'       then 'Alvará judicial'
+   end;
 
 -- ------------------------------------------------------------
--- Catálogo de custos — INVENTÁRIO
+-- Catálogo de custos
+--
+-- Blocos por serviço. Observações:
+--  · a certidão do imóvel entra DUAS vezes — prévia (antes do ato) e
+--    após o registro, ambas usando o parâmetro `certidao_imovel`;
+--  · `vinculado_registro` marca o que sai do "total sem registro" e
+--    compõe a base dos "Outros Custos".
 -- ------------------------------------------------------------
-insert into catalogo_custos (chave, nome, tipo_calculo, parametro, base, multiplicador, vias, tipo_servico_id, ordem)
-select v.chave, v.nome, v.tipo_calculo, v.parametro, v.base, v.multiplicador, v.vias, ts.id, v.ordem
-  from tipos_servico ts,
-       (values
-    ('honorarios',          'Honorários Advocatícios',          'honorarios',              null,                        null,              null,         null::text[],           10),
-    ('imposto',             'ITCMD',                            'imposto',                 null,                        null,              null,         null::text[],           20),
-    ('certidao_imoveis',    'Certidão Imóveis',                 'por_unidade',             'certidao_imovel',           null,              'certidoes',  null::text[],           30),
-    ('certidao_testamento', 'Certidão de Testamento',           'fixo',                    'certidao_testamento',       null,              null,         null::text[],           40),
-    ('certidoes_pessoais',  'Certidões Pessoais dos Herdeiros', 'por_unidade',             'certidao_pessoal_herdeiro', null,              'herdeiros',  null::text[],           50),
-    ('custas',              'Custas Processuais',               'tabela_custas_judiciais', null,                        null,              null,         array['judicial'],      60),
-    ('custas',              'Custas de Cartório',               'tabela_notas',            null,                        null,              null,         array['extrajudicial'], 60),
-    ('registro_sri',        'Registro no SRI',                  'tabela_sri',              null,                        null,              null,         null::text[],           70),
-    ('outros_custos',       'Outros Custos',                    'percentual_sobre',        'outros_custos_percentual',  'custas_registro', null,         null::text[],           80)
-       ) as v(chave, nome, tipo_calculo, parametro, base, multiplicador, vias, ordem)
- where ts.chave = 'inventario';
+insert into catalogo_custos
+  (chave, nome, tipo_calculo, parametro, base, multiplicador, vias, vinculado_registro, tipo_servico_id, ordem)
+select v.chave, v.nome, v.tipo_calculo, v.parametro, v.base, v.multiplicador, v.vias, v.vinculado_registro, ts.id, v.ordem
+  from tipos_servico ts
+  join (values
+    -- serviço                 chave                    nome                                  tipo_calculo               parametro                    base               multiplicador       vias                      vinc.  ordem
+    ('inventario_consensual', 'honorarios',            'Honorários Advocatícios',            'honorarios',              null,                        null,              null,               null::text[],             false, 10),
+    ('inventario_consensual', 'imposto',               'ITCMD',                              'imposto',                 null,                        null,              null,               null::text[],             false, 20),
+    ('inventario_consensual', 'certidao_previa',       'Certidão de Imóveis (prévia)',       'por_unidade',             'certidao_imovel',           null,              'certidoes',        null::text[],             false, 30),
+    ('inventario_consensual', 'certidao_testamento',   'Certidão de Testamento',             'fixo',                    'certidao_testamento',       null,              null,               null::text[],             false, 40),
+    ('inventario_consensual', 'certidoes_pessoais',    'Certidões Pessoais dos Herdeiros',   'por_unidade',             'certidao_pessoal_herdeiro', null,              'herdeiros',        null::text[],             false, 50),
+    ('inventario_consensual', 'custas',                'Custas Processuais',                 'tabela_custas_judiciais', null,                        null,              null,               array['judicial'],        false, 60),
+    ('inventario_consensual', 'custas',                'Custas de Cartório',                 'tabela_notas',            null,                        null,              null,               array['extrajudicial'],   false, 60),
+    ('inventario_consensual', 'registro_sri',          'Registro no SRI',                    'tabela_sri',              null,                        null,              null,               null::text[],             true,  70),
+    ('inventario_consensual', 'certidao_pos_registro', 'Certidão de Imóveis (após registro)','por_unidade',             'certidao_imovel',           null,              'imoveis_registro', null::text[],             true,  75),
+    ('inventario_consensual', 'outros_custos',         'Outros Custos',                      'percentual_sobre',        'outros_custos_percentual',  'custas_registro', null,               null::text[],             false, 80),
 
--- ------------------------------------------------------------
--- Catálogo de custos — ESCRITURA
--- ------------------------------------------------------------
-insert into catalogo_custos (chave, nome, tipo_calculo, parametro, base, multiplicador, vias, tipo_servico_id, ordem)
-select v.chave, v.nome, v.tipo_calculo, v.parametro, v.base, v.multiplicador, v.vias, ts.id, v.ordem
-  from tipos_servico ts,
-       (values
-    ('imposto',          'ITBI',              'imposto',          null,                       null,              null,        null::text[],           10),
-    ('certidao_imoveis', 'Certidão Imóveis',  'por_unidade',      'certidao_imovel',          null,              'certidoes', null::text[],           20),
-    ('custas',           'Custas de Cartório','tabela_notas',     null,                       null,              null,        array['extrajudicial'], 30),
-    ('registro_sri',     'Registro no SRI',   'tabela_sri',       null,                       null,              null,        null::text[],           40),
-    ('outros_custos',    'Outros Custos',     'percentual_sobre', 'outros_custos_percentual', 'custas_registro', null,        null::text[],           50)
-       ) as v(chave, nome, tipo_calculo, parametro, base, multiplicador, vias, ordem)
- where ts.chave = 'escritura';
+    ('inventario_litigioso',  'honorarios',            'Honorários Advocatícios',            'honorarios',              null,                        null,              null,               null::text[],             false, 10),
+    ('inventario_litigioso',  'imposto',               'ITCMD',                              'imposto',                 null,                        null,              null,               null::text[],             false, 20),
+    ('inventario_litigioso',  'certidao_previa',       'Certidão de Imóveis (prévia)',       'por_unidade',             'certidao_imovel',           null,              'certidoes',        null::text[],             false, 30),
+    ('inventario_litigioso',  'certidao_testamento',   'Certidão de Testamento',             'fixo',                    'certidao_testamento',       null,              null,               null::text[],             false, 40),
+    ('inventario_litigioso',  'certidoes_pessoais',    'Certidões Pessoais dos Herdeiros',   'por_unidade',             'certidao_pessoal_herdeiro', null,              'herdeiros',        null::text[],             false, 50),
+    ('inventario_litigioso',  'custas',                'Custas Processuais',                 'tabela_custas_judiciais', null,                        null,              null,               array['judicial'],        false, 60),
+    ('inventario_litigioso',  'registro_sri',          'Registro no SRI',                    'tabela_sri',              null,                        null,              null,               null::text[],             true,  70),
+    ('inventario_litigioso',  'certidao_pos_registro', 'Certidão de Imóveis (após registro)','por_unidade',             'certidao_imovel',           null,              'imoveis_registro', null::text[],             true,  75),
+    ('inventario_litigioso',  'outros_custos',         'Outros Custos',                      'percentual_sobre',        'outros_custos_percentual',  'custas_registro', null,               null::text[],             false, 80),
+
+    ('escritura',             'imposto',               'ITBI',                               'imposto',                 null,                        null,              null,               null::text[],             false, 20),
+    ('escritura',             'certidao_previa',       'Certidão de Imóveis (prévia)',       'por_unidade',             'certidao_imovel',           null,              'certidoes',        null::text[],             false, 30),
+    ('escritura',             'custas',                'Custas de Cartório',                 'tabela_notas',            null,                        null,              null,               array['extrajudicial'],   false, 60),
+    ('escritura',             'registro_sri',          'Registro no SRI',                    'tabela_sri',              null,                        null,              null,               null::text[],             true,  70),
+    ('escritura',             'certidao_pos_registro', 'Certidão de Imóveis (após registro)','por_unidade',             'certidao_imovel',           null,              'imoveis_registro', null::text[],             true,  75),
+    ('escritura',             'outros_custos',         'Outros Custos',                      'percentual_sobre',        'outros_custos_percentual',  'custas_registro', null,               null::text[],             false, 80),
+
+    ('usucapiao',             'honorarios',            'Honorários Advocatícios',            'honorarios',              null,                        null,              null,               null::text[],             false, 10),
+    ('usucapiao',             'certidao_previa',       'Certidão de Imóveis (prévia)',       'por_unidade',             'certidao_imovel',           null,              'certidoes',        null::text[],             false, 30),
+    ('usucapiao',             'custas',                'Custas Processuais',                 'tabela_custas_judiciais', null,                        null,              null,               array['judicial'],        false, 60),
+    ('usucapiao',             'custas',                'Custas de Cartório',                 'tabela_notas',            null,                        null,              null,               array['extrajudicial'],   false, 60),
+    ('usucapiao',             'registro_sri',          'Registro no SRI',                    'tabela_sri',              null,                        null,              null,               null::text[],             true,  70),
+    ('usucapiao',             'certidao_pos_registro', 'Certidão de Imóveis (após registro)','por_unidade',             'certidao_imovel',           null,              'imoveis_registro', null::text[],             true,  75),
+    ('usucapiao',             'outros_custos',         'Outros Custos',                      'percentual_sobre',        'outros_custos_percentual',  'custas_registro', null,               null::text[],             false, 80),
+
+    ('divorcio_consensual',   'honorarios',            'Honorários Advocatícios',            'honorarios',              null,                        null,              null,               null::text[],             false, 10),
+    ('divorcio_consensual',   'certidao_previa',       'Certidão de Imóveis (prévia)',       'por_unidade',             'certidao_imovel',           null,              'certidoes',        null::text[],             false, 30),
+    ('divorcio_consensual',   'custas',                'Custas Processuais',                 'tabela_custas_judiciais', null,                        null,              null,               array['judicial'],        false, 60),
+    ('divorcio_consensual',   'custas',                'Custas de Cartório',                 'tabela_notas',            null,                        null,              null,               array['extrajudicial'],   false, 60),
+    ('divorcio_consensual',   'registro_sri',          'Registro no SRI',                    'tabela_sri',              null,                        null,              null,               null::text[],             true,  70),
+    ('divorcio_consensual',   'certidao_pos_registro', 'Certidão de Imóveis (após registro)','por_unidade',             'certidao_imovel',           null,              'imoveis_registro', null::text[],             true,  75),
+    ('divorcio_consensual',   'outros_custos',         'Outros Custos',                      'percentual_sobre',        'outros_custos_percentual',  'custas_registro', null,               null::text[],             false, 80),
+
+    ('divorcio_litigioso',    'honorarios',            'Honorários Advocatícios',            'honorarios',              null,                        null,              null,               null::text[],             false, 10),
+    ('divorcio_litigioso',    'certidao_previa',       'Certidão de Imóveis (prévia)',       'por_unidade',             'certidao_imovel',           null,              'certidoes',        null::text[],             false, 30),
+    ('divorcio_litigioso',    'custas',                'Custas Processuais',                 'tabela_custas_judiciais', null,                        null,              null,               array['judicial'],        false, 60),
+    ('divorcio_litigioso',    'registro_sri',          'Registro no SRI',                    'tabela_sri',              null,                        null,              null,               null::text[],             true,  70),
+    ('divorcio_litigioso',    'certidao_pos_registro', 'Certidão de Imóveis (após registro)','por_unidade',             'certidao_imovel',           null,              'imoveis_registro', null::text[],             true,  75),
+    ('divorcio_litigioso',    'outros_custos',         'Outros Custos',                      'percentual_sobre',        'outros_custos_percentual',  'custas_registro', null,               null::text[],             false, 80),
+
+    ('alvara_judicial',       'honorarios',            'Honorários Advocatícios',            'honorarios',              null,                        null,              null,               null::text[],             false, 10),
+    ('alvara_judicial',       'certidoes_pessoais',    'Certidões Pessoais dos Herdeiros',   'por_unidade',             'certidao_pessoal_herdeiro', null,              'herdeiros',        null::text[],             false, 50),
+    ('alvara_judicial',       'custas',                'Custas Processuais',                 'tabela_custas_judiciais', null,                        null,              null,               array['judicial'],        false, 60),
+    ('alvara_judicial',       'outros_custos',         'Outros Custos',                      'percentual_sobre',        'outros_custos_percentual',  'custas_registro', null,               null::text[],             false, 80)
+  ) as v(servico, chave, nome, tipo_calculo, parametro, base, multiplicador, vias, vinculado_registro, ordem)
+    on v.servico = ts.chave;
 
 -- ------------------------------------------------------------
 -- Modelo de proposta — Inventário
@@ -191,7 +242,7 @@ insert into modelos_proposta (nome, tipo_servico_id, texto_abertura, padrao)
 select 'Proposta padrão — Inventário', ts.id,
        'Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Inventário de:',
        true
-  from tipos_servico ts where ts.chave = 'inventario';
+  from tipos_servico ts where ts.chave = 'inventario_consensual';
 
 insert into modelos_proposta_itens (modelo_id, descricao, incluso, ordem)
 select m.id, v.descricao, v.incluso, v.ordem

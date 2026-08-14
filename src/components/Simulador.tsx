@@ -7,24 +7,30 @@
 // ============================================================
 
 import { useMemo, useState } from "react";
-import { Plus, Printer, Trash2, TriangleAlert } from "lucide-react";
+import { Plus, Printer, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
 
 import { calcularOrcamento } from "@/lib/calculo/orcamento";
+import { buscarAcao } from "@/lib/calculo/honorarios";
 import { calcularPartilha, type Herdeiro } from "@/lib/calculo/partilha";
-import type { Bem, ConfigHonorarios, ContextoCalculo, Via } from "@/lib/calculo/tipos";
+import type {
+  Bem,
+  ConfigHonorarios,
+  ContextoCalculo,
+  FaixaCustasJudiciais,
+  Parametros,
+  Via,
+} from "@/lib/calculo/tipos";
 import { TABELA_NOTAS_2025, TABELA_SRI_2025, TABELA_OAB } from "@/lib/dados/tabelas-2025";
 import {
-  CATALOGO_ESCRITURA,
-  CATALOGO_INVENTARIO,
+  CAMPOS_PARAMETROS,
   CONDICOES_PADRAO,
   FAIXAS_CUSTAS_JUDICIAIS,
   PARAMETROS_PADRAO,
   PROPOSTA_ITENS_PADRAO,
 } from "@/lib/dados/padroes";
+import { SERVICOS, servicoPorChave } from "@/lib/dados/servicos";
 import { Proposta } from "./Proposta";
 import { Botao, Campo, Interruptor, Numero, Secao, Selecao, Texto, moeda, percentual } from "./ui";
-
-type TipoServico = "inventario" | "escritura";
 
 let sequencia = 0;
 const novoId = () => `id_${++sequencia}`;
@@ -40,7 +46,7 @@ const bemVazio = (): Bem & { id: string } => ({
 });
 
 export function Simulador() {
-  const [tipoServico, setTipoServico] = useState<TipoServico>("inventario");
+  const [tipoServico, setTipoServico] = useState(SERVICOS[0].chave);
   const [cliente, setCliente] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
@@ -60,8 +66,13 @@ export function Simulador() {
   const [acaoOab, setAcaoOab] = useState(TABELA_OAB[4]?.acao ?? TABELA_OAB[0].acao);
 
   const [aplicarMulta, setAplicarMulta] = useState(false);
-  const [registroIncluiCertidao, setRegistroIncluiCertidao] = useState(true);
   const [rateio, setRateio] = useState<"por_quinhao" | "igualitario">("por_quinhao");
+
+  // Parametrização — depois vem do banco; aqui já dá para ajustar e ver o efeito.
+  const [parametros, setParametros] = useState<Parametros>(PARAMETROS_PADRAO);
+  const [faixasCustas, setFaixasCustas] =
+    useState<FaixaCustasJudiciais[]>(FAIXAS_CUSTAS_JUDICIAIS);
+  const [aliquotas, setAliquotas] = useState<Record<string, number>>({});
 
   const [valorNegociado, setValorNegociado] = useState(0);
   const [viaEscolhida, setViaEscolhida] = useState<Via>("extrajudicial");
@@ -69,34 +80,34 @@ export function Simulador() {
   const [entrada, setEntrada] = useState(CONDICOES_PADRAO.entradaPercentual);
   const [parcelas, setParcelas] = useState(CONDICOES_PADRAO.parcelas);
 
-  const ehInventario = tipoServico === "inventario";
+  const servico = servicoPorChave(tipoServico);
+  const impostoAliquota = aliquotas[servico.chave] ?? servico.impostoAliquota;
   const qtdHerdeiros = herdeiros.filter((h) => h.tipo === "herdeiro").length;
+
+  // A via escolhida precisa existir no serviço (escritura só tem cartório, p. ex.).
+  const via = servico.vias.includes(viaEscolhida) ? viaEscolhida : servico.vias[0];
 
   const honorarios: ConfigHonorarios = useMemo(() => {
     if (honorariosModo === "fixo") return { modo: "fixo", valor: honorariosValor };
     if (honorariosModo === "percentual")
       return { modo: "percentual", percentual: honorariosPercentual };
-    const acao = TABELA_OAB.find((a) => a.acao === acaoOab) ?? TABELA_OAB[0];
+    const acao = buscarAcao(TABELA_OAB, acaoOab) ?? TABELA_OAB[0];
     return { modo: "tabela", percentual: acao.percentual, valorMinimo: acao.valorMinimo };
   }, [honorariosModo, honorariosValor, honorariosPercentual, acaoOab]);
 
   const contextoBase = useMemo(
     (): Omit<ContextoCalculo, "via"> => ({
       bens,
-      qtdHerdeiros: ehInventario ? qtdHerdeiros : 0,
-      parametros: {
-        ...PARAMETROS_PADRAO,
-        impostoAliquota: ehInventario ? 4 : 3,
-        registroIncluiCertidao,
-      },
+      qtdHerdeiros: servico.temHerdeiros ? qtdHerdeiros : 0,
+      parametros: { ...parametros, impostoAliquota },
       aplicarMulta,
-      honorarios: ehInventario ? honorarios : { modo: "fixo", valor: 0 },
+      honorarios,
       tabelaNotas: TABELA_NOTAS_2025,
       tabelaSri: TABELA_SRI_2025,
-      faixasCustasJudiciais: FAIXAS_CUSTAS_JUDICIAIS,
-      catalogo: ehInventario ? CATALOGO_INVENTARIO : CATALOGO_ESCRITURA,
+      faixasCustasJudiciais: faixasCustas,
+      catalogo: servico.catalogo,
     }),
-    [bens, ehInventario, qtdHerdeiros, registroIncluiCertidao, aplicarMulta, honorarios]
+    [bens, servico, qtdHerdeiros, parametros, impostoAliquota, aplicarMulta, honorarios, faixasCustas]
   );
 
   const judicial = useMemo(
@@ -108,7 +119,7 @@ export function Simulador() {
     [contextoBase]
   );
 
-  const resultadoEscolhido = viaEscolhida === "judicial" ? judicial : extrajudicial;
+  const resultadoEscolhido = via === "judicial" ? judicial : extrajudicial;
   const totalProposta = valorNegociado > 0 ? valorNegociado : resultadoEscolhido.total;
 
   const partilha = useMemo(
@@ -163,10 +174,17 @@ export function Simulador() {
             <Campo rotulo="Tipo de serviço">
               <Selecao
                 value={tipoServico}
-                onChange={(e) => setTipoServico(e.target.value as TipoServico)}
+                onChange={(e) => {
+                  const novo = servicoPorChave(e.target.value);
+                  setTipoServico(novo.chave);
+                  if (novo.acaoOab) setAcaoOab(novo.acaoOab);
+                }}
               >
-                <option value="inventario">Inventário</option>
-                <option value="escritura">Escritura de compra e venda</option>
+                {SERVICOS.map((sv) => (
+                  <option key={sv.chave} value={sv.chave}>
+                    {sv.nome}
+                  </option>
+                ))}
               </Selecao>
             </Campo>
             <Campo rotulo="Cliente" className="sm:col-span-2">
@@ -177,6 +195,12 @@ export function Simulador() {
               />
             </Campo>
           </div>
+
+          {servico.observacao && (
+            <p className="mt-4 rounded-lg bg-marinho-50 px-3 py-2 text-xs text-marinho">
+              {servico.observacao}
+            </p>
+          )}
         </Secao>
 
         {/* ---------------- bens ---------------- */}
@@ -283,7 +307,7 @@ export function Simulador() {
         </Secao>
 
         {/* ---------------- herdeiros ---------------- */}
-        {ehInventario && (
+        {servico.temHerdeiros && (
           <Secao
             titulo="Herdeiros e quinhões"
             descricao="O percentual do meeiro(a) incide sobre o valor venal; o dos herdeiros, sobre o monte partilhável."
@@ -360,7 +384,7 @@ export function Simulador() {
 
         {/* ---------------- honorários e opções ---------------- */}
         <div className="grid gap-5 lg:grid-cols-2">
-          {ehInventario && (
+          {servico.catalogo.some((i) => i.chave === "honorarios") && (
             <Secao titulo="Honorários">
               <div className="space-y-4">
                 <Campo rotulo="Como calcular">
@@ -403,19 +427,32 @@ export function Simulador() {
 
           <Secao titulo="Condições do cálculo">
             <div className="space-y-3">
-              <Interruptor
-                rotulo="Aplicar multa sobre o imposto"
-                dica={`${PARAMETROS_PADRAO.multaPercentual}% sobre o ${ehInventario ? "ITCMD" : "ITBI"}, para recolhimento em atraso.`}
-                ativo={aplicarMulta}
-                aoMudar={setAplicarMulta}
-              />
-              <Interruptor
-                rotulo="Registro no SRI embute uma certidão"
-                dica="Como na planilha. Desligue para cobrar uma única certidão por imóvel."
-                ativo={registroIncluiCertidao}
-                aoMudar={setRegistroIncluiCertidao}
-              />
-              {ehInventario && (
+              {servico.nomeImposto ? (
+                <Campo
+                  rotulo={`Alíquota do ${servico.nomeImposto}`}
+                  dica="Vale só para este serviço."
+                >
+                  <Numero
+                    valor={impostoAliquota}
+                    aoMudar={(v) => setAliquotas((a) => ({ ...a, [servico.chave]: v }))}
+                  />
+                </Campo>
+              ) : (
+                <p className="text-xs text-texto-suave">
+                  Este serviço não recolhe imposto de transmissão.
+                </p>
+              )}
+
+              {servico.nomeImposto && (
+                <Interruptor
+                  rotulo={`Aplicar multa sobre o ${servico.nomeImposto}`}
+                  dica={`${parametros.multaPercentual}% para recolhimento em atraso.`}
+                  ativo={aplicarMulta}
+                  aoMudar={setAplicarMulta}
+                />
+              )}
+
+              {servico.temHerdeiros && (
                 <Campo rotulo="Rateio dos custos entre os herdeiros">
                   <Selecao
                     value={rateio}
@@ -434,34 +471,36 @@ export function Simulador() {
         <Secao
           titulo="Apuração"
           descricao={
-            ehInventario
+            servico.vias.length > 1
               ? "As duas vias lado a lado. A diferença está na linha de custas."
-              : "Via extrajudicial (cartório)."
+              : servico.vias[0] === "judicial"
+                ? "Via judicial."
+                : "Via extrajudicial (cartório)."
           }
         >
-          <div className={`grid gap-5 ${ehInventario ? "lg:grid-cols-2" : ""}`}>
-            {(ehInventario ? (["judicial", "extrajudicial"] as Via[]) : (["extrajudicial"] as Via[])).map(
-              (via) => {
-                const r = via === "judicial" ? judicial : extrajudicial;
-                const selecionada = viaEscolhida === via;
+          <div className={`grid gap-5 ${servico.vias.length > 1 ? "lg:grid-cols-2" : ""}`}>
+            {servico.vias.map(
+              (viaAtual: Via) => {
+                const r = viaAtual === "judicial" ? judicial : extrajudicial;
+                const selecionada = via === viaAtual;
                 return (
                   <div
-                    key={via}
+                    key={viaAtual}
                     className={`rounded-lg border p-4 transition ${
                       selecionada ? "border-marinho bg-marinho-50/40" : "border-borda"
                     }`}
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <h3 className="text-sm font-semibold text-marinho">
-                        {via === "judicial" ? "Judicial" : "Cartório (extrajudicial)"}
+                        {viaAtual === "judicial" ? "Judicial" : "Cartório (extrajudicial)"}
                       </h3>
-                      {ehInventario && (
+                      {servico.vias.length > 1 && (
                         <label className="flex items-center gap-1.5 text-xs text-texto-suave">
                           <input
                             type="radio"
                             name="via"
                             checked={selecionada}
-                            onChange={() => setViaEscolhida(via)}
+                            onChange={() => setViaEscolhida(viaAtual)}
                             className="accent-[var(--marinho)]"
                           />
                           usar na proposta
@@ -472,7 +511,7 @@ export function Simulador() {
                     <table className="w-full text-sm">
                       <tbody>
                         {r.linhas.map((l) => (
-                          <tr key={`${via}-${l.chave}`} className="border-b border-borda/50">
+                          <tr key={`${viaAtual}-${l.chave}`} className="border-b border-borda/50">
                             <td className="py-1.5">
                               <span className="block">{l.nome}</span>
                               <span className="block text-[11px] text-texto-suave">
@@ -494,7 +533,7 @@ export function Simulador() {
                             {moeda(r.totalSemRegistro)}
                           </td>
                         </tr>
-                        {ehInventario && qtdHerdeiros > 0 && (
+                        {servico.temHerdeiros && qtdHerdeiros > 0 && (
                           <tr className="text-xs text-texto-suave">
                             <td className="pt-1">Por herdeiro ({qtdHerdeiros})</td>
                             <td className="pt-1 text-right tabular-nums">
@@ -512,7 +551,7 @@ export function Simulador() {
         </Secao>
 
         {/* ---------------- partilha ---------------- */}
-        {ehInventario && herdeiros.length > 0 && (
+        {servico.temPartilha && herdeiros.length > 0 && (
           <Secao
             titulo="Cotas-partes"
             descricao="Quinhão de cada um e o custo do serviço rateado."
@@ -563,6 +602,88 @@ export function Simulador() {
             </div>
           </Secao>
         )}
+
+        {/* ---------------- parametrização ---------------- */}
+        <Secao
+          titulo="Parametrização"
+          descricao="Valores de referência do cálculo. Aqui é provisório — vira a tela de Parametrização, gravada no banco."
+          acao={
+            <Botao
+              variante="secundario"
+              onClick={() => {
+                setParametros(PARAMETROS_PADRAO);
+                setFaixasCustas(FAIXAS_CUSTAS_JUDICIAIS);
+                setAliquotas({});
+              }}
+            >
+              <RotateCcw size={15} /> Restaurar
+            </Botao>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {CAMPOS_PARAMETROS.map((campo) => (
+              <Campo
+                key={campo.chave}
+                rotulo={`${campo.rotulo}${campo.formato === "percentual" ? " (%)" : ""}`}
+                dica={campo.dica}
+              >
+                <Numero
+                  valor={parametros[campo.chave]}
+                  aoMudar={(v) => setParametros((a) => ({ ...a, [campo.chave]: v }))}
+                />
+              </Campo>
+            ))}
+          </div>
+
+          <div className="mt-6">
+            <p className="mb-1 text-xs font-medium text-texto-suave">
+              Custas judiciais — degraus em UFESP
+            </p>
+            <p className="mb-3 text-[11px] text-texto-suave">
+              Aplicados sobre o monte-mor / valor da ação. Hoje: {moeda(parametros.ufesp)} por UFESP.
+            </p>
+            <div className="space-y-2">
+              {faixasCustas.map((faixa, i) => (
+                <div
+                  key={faixa.ordem}
+                  className="grid grid-cols-[auto_1fr_auto_1fr_auto_100px_auto] items-center gap-2 text-xs text-texto-suave"
+                >
+                  <span>de</span>
+                  <Numero
+                    valor={faixa.valorDe}
+                    aoMudar={(v) =>
+                      setFaixasCustas((a) =>
+                        a.map((f, j) => (j === i ? { ...f, valorDe: v } : f))
+                      )
+                    }
+                  />
+                  <span>até</span>
+                  <Numero
+                    valor={faixa.valorAte ?? 0}
+                    placeholder="sem limite"
+                    aoMudar={(v) =>
+                      setFaixasCustas((a) =>
+                        a.map((f, j) => (j === i ? { ...f, valorAte: v > 0 ? v : null } : f))
+                      )
+                    }
+                  />
+                  <span>=</span>
+                  <Numero
+                    valor={faixa.quantidade}
+                    aoMudar={(v) =>
+                      setFaixasCustas((a) =>
+                        a.map((f, j) => (j === i ? { ...f, quantidade: v } : f))
+                      )
+                    }
+                  />
+                  <span className="whitespace-nowrap">
+                    UFESP = {moeda(faixa.quantidade * parametros.ufesp)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Secao>
 
         {/* ---------------- proposta ---------------- */}
         <Secao
@@ -647,8 +768,8 @@ export function Simulador() {
       {/* ---------------- área de impressão ---------------- */}
       <Proposta
         cliente={cliente}
-        tipoServico={ehInventario ? "Inventário" : "Escritura"}
-        via={viaEscolhida}
+        tipoServico={servico.nome}
+        via={via}
         bens={bens}
         itens={itensProposta}
         total={totalProposta}

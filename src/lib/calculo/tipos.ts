@@ -61,12 +61,6 @@ export type Parametros = {
   certidaoTestamento: number;
   certidaoPessoalHerdeiro: number;
   outrosCustosPercentual: number;
-  /**
-   * Se o registro no SRI já embute uma certidão do imóvel.
-   * A planilha soma essa certidão duas vezes (aqui e na linha "Certidão Imóveis") —
-   * problema #6 da análise. Mantido `true` por fidelidade, editável na parametrização.
-   */
-  registroIncluiCertidao: boolean;
 };
 
 export type BaseCalculo =
@@ -76,7 +70,13 @@ export type BaseCalculo =
   | "custas_registro"
   | "subtotal";
 
-export type Multiplicador = "herdeiros" | "imoveis" | "bens" | "certidoes" | "manual";
+export type Multiplicador =
+  | "herdeiros"
+  | "imoveis"
+  | "imoveis_registro"
+  | "bens"
+  | "certidoes"
+  | "manual";
 
 export type TipoCalculo =
   | "fixo"
@@ -108,6 +108,11 @@ export type ItemCatalogo = {
    * em vez de ficar duplicado no catálogo.
    */
   parametro?: keyof Parametros;
+  /**
+   * Marca a linha como parte do custo de registro. Essas linhas compõem a base
+   * "custas + registro" e são as que saem do "total sem registro".
+   */
+  vinculadoRegistro?: boolean;
 };
 
 /** Linha de despesa já apurada. */
@@ -119,6 +124,7 @@ export type LinhaCusto = {
   memoria: string;
   origem: "auto" | "manual";
   incluso: boolean;
+  vinculadoRegistro: boolean;
 };
 
 export type ContextoCalculo = {

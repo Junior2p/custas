@@ -1,0 +1,227 @@
+// ============================================================
+// TIPOS DE SERVIÇO — os que dependem de análise com base no valor.
+// Cada serviço define o imposto, se tem herdeiros/partilha, as vias
+// possíveis e o catálogo de custos que o compõe.
+// Tudo isso vira registro editável no banco (tabelas `tipos_servico`
+// e `catalogo_custos`) — aqui é a carga inicial.
+// ============================================================
+import type { ItemCatalogo, Via } from "@/lib/calculo/tipos";
+
+export type DefinicaoServico = {
+  chave: string;
+  nome: string;
+  /** Nome do imposto exibido na linha. `null` = o serviço não recolhe imposto. */
+  nomeImposto: string | null;
+  /** Alíquota em pontos percentuais. */
+  impostoAliquota: number;
+  temHerdeiros: boolean;
+  temPartilha: boolean;
+  vias: Via[];
+  /** Ação correspondente na Tabela OAB. */
+  acaoOab?: string;
+  /** Aparece na tela — registra premissas que o Junior deve confirmar. */
+  observacao?: string;
+  catalogo: ItemCatalogo[];
+};
+
+// ------------------------------------------------------------
+// Blocos reutilizáveis de custo
+// ------------------------------------------------------------
+
+const HONORARIOS: ItemCatalogo = {
+  chave: "honorarios",
+  nome: "Honorários Advocatícios",
+  tipoCalculo: "honorarios",
+  ordem: 10,
+};
+
+const imposto = (nome: string): ItemCatalogo => ({
+  chave: "imposto",
+  nome,
+  tipoCalculo: "imposto",
+  ordem: 20,
+});
+
+/** Certidão tirada ANTES do ato — para instruir o inventário/escritura. */
+const CERTIDAO_PREVIA: ItemCatalogo = {
+  chave: "certidao_previa",
+  nome: "Certidão de Imóveis (prévia)",
+  tipoCalculo: "por_unidade",
+  multiplicador: "certidoes",
+  parametro: "certidaoImovel",
+  ordem: 30,
+};
+
+const CERTIDAO_TESTAMENTO: ItemCatalogo = {
+  chave: "certidao_testamento",
+  nome: "Certidão de Testamento",
+  tipoCalculo: "fixo",
+  parametro: "certidaoTestamento",
+  ordem: 40,
+};
+
+const CERTIDOES_PESSOAIS: ItemCatalogo = {
+  chave: "certidoes_pessoais",
+  nome: "Certidões Pessoais dos Herdeiros",
+  tipoCalculo: "por_unidade",
+  multiplicador: "herdeiros",
+  parametro: "certidaoPessoalHerdeiro",
+  ordem: 50,
+};
+
+const CUSTAS_JUDICIAIS: ItemCatalogo = {
+  chave: "custas",
+  nome: "Custas Processuais",
+  tipoCalculo: "tabela_custas_judiciais",
+  vias: ["judicial"],
+  ordem: 60,
+};
+
+const CUSTAS_CARTORIO: ItemCatalogo = {
+  chave: "custas",
+  nome: "Custas de Cartório",
+  tipoCalculo: "tabela_notas",
+  vias: ["extrajudicial"],
+  ordem: 60,
+};
+
+const REGISTRO_SRI: ItemCatalogo = {
+  chave: "registro_sri",
+  nome: "Registro no SRI",
+  tipoCalculo: "tabela_sri",
+  vinculadoRegistro: true,
+  ordem: 70,
+};
+
+/** Certidão tirada DEPOIS do registro, já com a propriedade transferida. */
+const CERTIDAO_POS_REGISTRO: ItemCatalogo = {
+  chave: "certidao_pos_registro",
+  nome: "Certidão de Imóveis (após o registro)",
+  tipoCalculo: "por_unidade",
+  multiplicador: "imoveis_registro",
+  parametro: "certidaoImovel",
+  vinculadoRegistro: true,
+  ordem: 75,
+};
+
+const OUTROS_CUSTOS: ItemCatalogo = {
+  chave: "outros_custos",
+  nome: "Outros Custos",
+  tipoCalculo: "percentual_sobre",
+  base: "custas_registro",
+  parametro: "outrosCustosPercentual",
+  ordem: 80,
+};
+
+const COM_IMOVEIS = [CERTIDAO_PREVIA, REGISTRO_SRI, CERTIDAO_POS_REGISTRO];
+const CUSTAS_AMBAS = [CUSTAS_JUDICIAIS, CUSTAS_CARTORIO];
+
+// ------------------------------------------------------------
+// Serviços
+// ------------------------------------------------------------
+
+export const SERVICOS: DefinicaoServico[] = [
+  {
+    chave: "inventario_consensual",
+    nome: "Inventário Consensual",
+    nomeImposto: "ITCMD",
+    impostoAliquota: 4,
+    temHerdeiros: true,
+    temPartilha: true,
+    vias: ["judicial", "extrajudicial"],
+    acaoOab: "Inventário Consensual",
+    catalogo: [
+      HONORARIOS,
+      imposto("ITCMD"),
+      CERTIDAO_TESTAMENTO,
+      CERTIDOES_PESSOAIS,
+      ...COM_IMOVEIS,
+      ...CUSTAS_AMBAS,
+      OUTROS_CUSTOS,
+    ],
+  },
+  {
+    chave: "inventario_litigioso",
+    nome: "Inventário Litigioso",
+    nomeImposto: "ITCMD",
+    impostoAliquota: 4,
+    temHerdeiros: true,
+    temPartilha: true,
+    vias: ["judicial"],
+    acaoOab: "Inventário Litigioso",
+    catalogo: [
+      HONORARIOS,
+      imposto("ITCMD"),
+      CERTIDAO_TESTAMENTO,
+      CERTIDOES_PESSOAIS,
+      ...COM_IMOVEIS,
+      CUSTAS_JUDICIAIS,
+      OUTROS_CUSTOS,
+    ],
+  },
+  {
+    chave: "escritura",
+    nome: "Escritura de Compra e Venda",
+    nomeImposto: "ITBI",
+    impostoAliquota: 3,
+    temHerdeiros: false,
+    temPartilha: false,
+    vias: ["extrajudicial"],
+    catalogo: [imposto("ITBI"), ...COM_IMOVEIS, CUSTAS_CARTORIO, OUTROS_CUSTOS],
+  },
+  {
+    chave: "usucapiao",
+    nome: "Usucapião",
+    nomeImposto: null,
+    impostoAliquota: 0,
+    temHerdeiros: false,
+    temPartilha: false,
+    vias: ["judicial", "extrajudicial"],
+    acaoOab: "Usucapião",
+    observacao:
+      "Sem imposto de transmissão — a aquisição por usucapião é originária. Se o caso exigir recolhimento, ligue o imposto na parametrização.",
+    catalogo: [HONORARIOS, ...COM_IMOVEIS, ...CUSTAS_AMBAS, OUTROS_CUSTOS],
+  },
+  {
+    chave: "divorcio_consensual",
+    nome: "Divórcio Consensual",
+    nomeImposto: null,
+    impostoAliquota: 0,
+    temHerdeiros: false,
+    temPartilha: true,
+    vias: ["judicial", "extrajudicial"],
+    acaoOab: "Divórcio Consensual",
+    observacao:
+      "A partilha igualitária não recolhe imposto. Havendo excesso de meação, o ITCMD incide só sobre o excesso — ligue o imposto e ajuste a base.",
+    catalogo: [HONORARIOS, ...COM_IMOVEIS, ...CUSTAS_AMBAS, OUTROS_CUSTOS],
+  },
+  {
+    chave: "divorcio_litigioso",
+    nome: "Divórcio Litigioso",
+    nomeImposto: null,
+    impostoAliquota: 0,
+    temHerdeiros: false,
+    temPartilha: true,
+    vias: ["judicial"],
+    acaoOab: "Divórcio Litigioso",
+    observacao:
+      "A partilha igualitária não recolhe imposto. Havendo excesso de meação, o ITCMD incide só sobre o excesso.",
+    catalogo: [HONORARIOS, ...COM_IMOVEIS, CUSTAS_JUDICIAIS, OUTROS_CUSTOS],
+  },
+  {
+    chave: "alvara_judicial",
+    nome: "Alvará Judicial",
+    nomeImposto: null,
+    impostoAliquota: 0,
+    temHerdeiros: true,
+    temPartilha: true,
+    vias: ["judicial"],
+    acaoOab: "Alvará judicial",
+    observacao:
+      "Base de cálculo = valor do bem ou numerário a levantar. Ligue o ITCMD se o alvará envolver transmissão causa mortis.",
+    catalogo: [HONORARIOS, CERTIDOES_PESSOAIS, CUSTAS_JUDICIAIS, OUTROS_CUSTOS],
+  },
+];
+
+export const servicoPorChave = (chave: string) =>
+  SERVICOS.find((s) => s.chave === chave) ?? SERVICOS[0];

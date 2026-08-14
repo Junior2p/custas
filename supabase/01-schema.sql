@@ -91,10 +91,13 @@ create table if not exists catalogo_custos (
   valor          numeric(14,2),
   percentual     numeric(6,3),
   base           text check (base in ('total_venal','total_transmitido','imposto','custas_registro','subtotal')),
-  multiplicador  text check (multiplicador in ('herdeiros','imoveis','bens','certidoes','manual')),
+  multiplicador  text check (multiplicador in ('herdeiros','imoveis','imoveis_registro','bens','certidoes','manual')),
   quantidade     numeric(14,4),
   parametro      text references parametros(chave) on delete set null,
   vias           text[],                   -- vazio/null = todas
+  -- marca as linhas de custo de registro: compõem a base dos "Outros Custos"
+  -- e são o que sai do "total sem registro"
+  vinculado_registro boolean not null default false,
   tipo_servico_id uuid references tipos_servico(id) on delete cascade,
   incluso_padrao boolean not null default true,
   ordem          int not null default 0,
@@ -219,6 +222,7 @@ create table if not exists orcamento_itens (
   valor_manual       numeric(14,2),                 -- override; null = usa o calculado
   origem             text not null default 'auto' check (origem in ('auto','manual')),
   incluso            boolean not null default true,
+  vinculado_registro boolean not null default false,
   memoria_calculo    text,
   ordem              int not null default 0
 );

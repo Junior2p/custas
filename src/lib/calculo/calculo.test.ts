@@ -6,17 +6,16 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { emolumento, arredondar } from "./emolumentos";
-import { calcularHonorarios } from "./honorarios";
+import { buscarAcao, calcularHonorarios } from "./honorarios";
 import { calcularOrcamento } from "./orcamento";
 import { calcularPartilha } from "./partilha";
 import type { Bem, ContextoCalculo } from "./tipos";
 import { TABELA_NOTAS_2025, TABELA_SRI_2025, TABELA_OAB } from "../dados/tabelas-2025";
-import {
-  PARAMETROS_PADRAO,
-  FAIXAS_CUSTAS_JUDICIAIS,
-  CATALOGO_INVENTARIO,
-  CATALOGO_ESCRITURA,
-} from "../dados/padroes";
+import { PARAMETROS_PADRAO, FAIXAS_CUSTAS_JUDICIAIS } from "../dados/padroes";
+import { SERVICOS, servicoPorChave } from "../dados/servicos";
+
+const INVENTARIO = servicoPorChave("inventario_consensual");
+const ESCRITURA = servicoPorChave("escritura");
 
 const perto = (recebido: number, esperado: number, tolerancia = 0.02) =>
   assert.ok(
@@ -87,7 +86,7 @@ function contextoInventario(via: "judicial" | "extrajudicial"): ContextoCalculo 
     tabelaNotas: TABELA_NOTAS_2025,
     tabelaSri: TABELA_SRI_2025,
     faixasCustasJudiciais: FAIXAS_CUSTAS_JUDICIAIS,
-    catalogo: CATALOGO_INVENTARIO,
+    catalogo: INVENTARIO.catalogo,
   };
 }
 
@@ -97,12 +96,14 @@ test("inventário via cartório reproduz o total da planilha (R$ 6.788,19)", () 
 
   perto(linha("honorarios"), 2000);
   perto(linha("imposto"), 1040); // ITCMD 800 + multa 240
-  perto(linha("certidao_imoveis"), 100);
+  perto(linha("certidao_previa"), 100);
   perto(linha("certidao_testamento"), 70);
   perto(linha("certidoes_pessoais"), 200);
   perto(linha("custas"), 1635.48);
-  perto(linha("registro_sri"), 1435.6); // emolumento 1.335,60 + certidão 100
-  perto(linha("outros_custos"), 307.11);
+  // A planilha somava as duas certidões dentro de uma linha só; agora ficam explícitas.
+  perto(linha("registro_sri"), 1335.6);
+  perto(linha("certidao_pos_registro"), 100);
+  perto(linha("outros_custos"), 307.11); // 10% sobre 1.635,48 + 1.435,60
 
   perto(r.total, 6788.19);
   perto(r.totalPorHerdeiro, 3394.09);
@@ -161,13 +162,14 @@ test("escritura reproduz o total da planilha (R$ 21.894,49)", () => {
     tabelaNotas: TABELA_NOTAS_2025,
     tabelaSri: TABELA_SRI_2025,
     faixasCustasJudiciais: FAIXAS_CUSTAS_JUDICIAIS,
-    catalogo: CATALOGO_ESCRITURA,
+    catalogo: ESCRITURA.catalogo,
   });
 
   const linha = (chave: string) => r.linhas.find((l) => l.chave === chave)!.valor;
   perto(linha("imposto"), 12000);
   perto(linha("custas"), 5519.9);
-  perto(linha("registro_sri"), 3384.18);
+  perto(linha("registro_sri"), 3284.18);
+  perto(linha("certidao_pos_registro"), 100);
   perto(linha("outros_custos"), 890.41);
 
   perto(r.total, 21894.49);
@@ -193,7 +195,7 @@ test("multa do ITBI passa a entrar quando ligada (corrige o problema #4)", () =>
     tabelaNotas: TABELA_NOTAS_2025,
     tabelaSri: TABELA_SRI_2025,
     faixasCustasJudiciais: FAIXAS_CUSTAS_JUDICIAIS,
-    catalogo: CATALOGO_ESCRITURA,
+    catalogo: ESCRITURA.catalogo,
   };
 
   const semMulta = calcularOrcamento({ ...base, aplicarMulta: false });
@@ -258,4 +260,65 @@ test("partilha aponta quinhões que não fecham em 100%", () => {
 test("arredondamento monetário elimina o ruído de ponto flutuante da planilha", () => {
   assert.equal(arredondar(362.97999999999996), 362.98);
   assert.equal(arredondar(307.108), 307.11);
+});
+
+// ------------------------------------------------------------
+// Tipos de serviço
+// ------------------------------------------------------------
+
+test("toda ação declarada num serviço existe na Tabela OAB", () => {
+  // Os nomes vieram do Excel com acentos decompostos (NFD) e não batiam com os
+  // literais do código — o Alvará ficava sem honorários e ninguém percebia.
+  for (const servico of SERVICOS) {
+    if (!servico.acaoOab) continue;
+    assert.ok(
+      buscarAcao(TABELA_OAB, servico.acaoOab),
+      `ação "${servico.acaoOab}" do serviço "${servico.nome}" não existe na Tabela OAB`
+    );
+  }
+});
+
+test("todo serviço apura um total em cada uma das suas vias", () => {
+  const bens: Bem[] = [
+    {
+      descricao: "Imóvel",
+      tipo: "imovel",
+      valorVenal: 300000,
+      percentual: 1,
+      registrar: true,
+      qtdCertidoes: 1,
+    },
+  ];
+
+  for (const servico of SERVICOS) {
+    const acao = buscarAcao(TABELA_OAB, servico.acaoOab);
+    for (const via of servico.vias) {
+      const r = calcularOrcamento({
+        bens,
+        qtdHerdeiros: 3,
+        via,
+        parametros: { ...PARAMETROS_PADRAO, impostoAliquota: servico.impostoAliquota },
+        aplicarMulta: false,
+        honorarios: acao
+          ? { modo: "tabela", percentual: acao.percentual, valorMinimo: acao.valorMinimo }
+          : { modo: "fixo", valor: 0 },
+        tabelaNotas: TABELA_NOTAS_2025,
+        tabelaSri: TABELA_SRI_2025,
+        faixasCustasJudiciais: FAIXAS_CUSTAS_JUDICIAIS,
+        catalogo: servico.catalogo,
+      });
+
+      assert.ok(r.total > 0, `${servico.nome} / ${via} apurou total zerado`);
+      assert.ok(
+        r.linhas.every((l) => Number.isFinite(l.valor)),
+        `${servico.nome} / ${via} tem linha com valor inválido`
+      );
+
+      // Serviço com honorários no catálogo tem de trazer o valor da tabela OAB.
+      if (servico.catalogo.some((i) => i.chave === "honorarios") && acao) {
+        const honorarios = r.linhas.find((l) => l.chave === "honorarios")!.valor;
+        assert.ok(honorarios > 0, `${servico.nome} / ${via} ficou sem honorários`);
+      }
+    }
+  }
 });

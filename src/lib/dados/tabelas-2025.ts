@@ -76,7 +76,7 @@ export const TABELA_SRI_2025: FaixaEmolumento[] = [
 
 export const TABELA_OAB: AcaoHonorario[] = [
   { acao: "Usucapião", percentual: 20.0, valorMinimo: 4354.77 },
-  { acao: "Alvará judicial", percentual: 20.0, valorMinimo: 2206.06 },
+  { acao: "Alvará judicial", percentual: 20.0, valorMinimo: 2206.06 },
   { acao: "Divórcio Consensual", percentual: 6.0, valorMinimo: 5598.99 },
   { acao: "Divórcio Litigioso", percentual: 8.0, valorMinimo: 8709.53 },
   { acao: "Inventário Consensual", percentual: 8.0, valorMinimo: 4354.77 },

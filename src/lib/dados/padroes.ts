@@ -3,22 +3,32 @@
 // Reproduzem as constantes encontradas na planilha (seção 7 da análise).
 // Depois de carregados, passam a ser editados pela tela de Parametrização.
 // ============================================================
-import type {
-  FaixaCustasJudiciais,
-  ItemCatalogo,
-  Parametros,
-} from "@/lib/calculo/tipos";
+import type { FaixaCustasJudiciais, Parametros } from "@/lib/calculo/tipos";
 
 export const PARAMETROS_PADRAO: Parametros = {
-  impostoAliquota: 4, // ITCMD/SP — na escritura vira ITBI 3%
+  impostoAliquota: 4, // ITCMD/SP — cada tipo de serviço define a sua
   multaPercentual: 30,
   ufesp: 34.26, // vigência 2025 — conferir a cada ano
   certidaoImovel: 100,
   certidaoTestamento: 70,
   certidaoPessoalHerdeiro: 100,
   outrosCustosPercentual: 10,
-  registroIncluiCertidao: true, // fiel à planilha — ver problema #6 da análise
 };
+
+/** Rótulos e formato de cada parâmetro, para a tela de parametrização. */
+export const CAMPOS_PARAMETROS: {
+  chave: keyof Parametros;
+  rotulo: string;
+  formato: "moeda" | "percentual";
+  dica?: string;
+}[] = [
+  { chave: "multaPercentual", rotulo: "Multa sobre o imposto", formato: "percentual", dica: "Recolhimento em atraso" },
+  { chave: "ufesp", rotulo: "UFESP", formato: "moeda", dica: "Base das custas judiciais" },
+  { chave: "certidaoImovel", rotulo: "Certidão de imóvel", formato: "moeda", dica: "Cobrada duas vezes: prévia e após o registro" },
+  { chave: "certidaoTestamento", rotulo: "Certidão de testamento", formato: "moeda", dica: "CENSEC" },
+  { chave: "certidaoPessoalHerdeiro", rotulo: "Certidões por herdeiro", formato: "moeda" },
+  { chave: "outrosCustosPercentual", rotulo: "Outros custos", formato: "percentual", dica: "Sobre custas + registro" },
+];
 
 /** Degraus de custas judiciais da planilha: 300 / 100 / 10 UFESP. */
 export const FAIXAS_CUSTAS_JUDICIAIS: FaixaCustasJudiciais[] = [
@@ -27,86 +37,7 @@ export const FAIXAS_CUSTAS_JUDICIAIS: FaixaCustasJudiciais[] = [
   { ordem: 3, valorDe: 500000, valorAte: null, base: "ufesp", quantidade: 300 },
 ];
 
-/** Catálogo do serviço de INVENTÁRIO — espelha as colunas C e H da aba `Inventário`. */
-export const CATALOGO_INVENTARIO: ItemCatalogo[] = [
-  { chave: "honorarios", nome: "Honorários Advocatícios", tipoCalculo: "honorarios", ordem: 10 },
-  { chave: "imposto", nome: "ITCMD", tipoCalculo: "imposto", ordem: 20 },
-  {
-    chave: "certidao_imoveis",
-    nome: "Certidão Imóveis",
-    tipoCalculo: "por_unidade",
-    multiplicador: "certidoes",
-    parametro: "certidaoImovel",
-    ordem: 30,
-  },
-  {
-    chave: "certidao_testamento",
-    nome: "Certidão de Testamento",
-    tipoCalculo: "fixo",
-    parametro: "certidaoTestamento",
-    ordem: 40,
-  },
-  {
-    chave: "certidoes_pessoais",
-    nome: "Certidões Pessoais dos Herdeiros",
-    tipoCalculo: "por_unidade",
-    multiplicador: "herdeiros",
-    parametro: "certidaoPessoalHerdeiro",
-    ordem: 50,
-  },
-  {
-    chave: "custas",
-    nome: "Custas Processuais",
-    tipoCalculo: "tabela_custas_judiciais",
-    vias: ["judicial"],
-    ordem: 60,
-  },
-  {
-    chave: "custas",
-    nome: "Custas de Cartório",
-    tipoCalculo: "tabela_notas",
-    vias: ["extrajudicial"],
-    ordem: 60,
-  },
-  { chave: "registro_sri", nome: "Registro no SRI", tipoCalculo: "tabela_sri", ordem: 70 },
-  {
-    chave: "outros_custos",
-    nome: "Outros Custos",
-    tipoCalculo: "percentual_sobre",
-    base: "custas_registro",
-    parametro: "outrosCustosPercentual",
-    ordem: 80,
-  },
-];
-
-/** Catálogo do serviço de ESCRITURA — só via cartório, ITBI, sem herdeiros. */
-export const CATALOGO_ESCRITURA: ItemCatalogo[] = [
-  { chave: "imposto", nome: "ITBI", tipoCalculo: "imposto", ordem: 10 },
-  {
-    chave: "certidao_imoveis",
-    nome: "Certidão Imóveis",
-    tipoCalculo: "por_unidade",
-    multiplicador: "certidoes",
-    parametro: "certidaoImovel",
-    ordem: 20,
-  },
-  {
-    chave: "custas",
-    nome: "Custas de Cartório",
-    tipoCalculo: "tabela_notas",
-    vias: ["extrajudicial"],
-    ordem: 30,
-  },
-  { chave: "registro_sri", nome: "Registro no SRI", tipoCalculo: "tabela_sri", ordem: 40 },
-  {
-    chave: "outros_custos",
-    nome: "Outros Custos",
-    tipoCalculo: "percentual_sobre",
-    base: "custas_registro",
-    parametro: "outrosCustosPercentual",
-    ordem: 50,
-  },
-];
+// Os catálogos de custo de cada serviço ficam em `servicos.ts`.
 
 /** Checklist padrão da proposta (aba `Proposta` da planilha). */
 export const PROPOSTA_ITENS_PADRAO = [
