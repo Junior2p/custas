@@ -85,11 +85,19 @@ input[type="number"] {
     display: none !important;
   }
 
-  /* Não corta tabelas e blocos no meio de uma quebra de página. */
+  /* Não corta tabelas, listas nem a assinatura no meio de uma quebra. */
   table,
   ul,
-  img {
+  img,
+  .bloco-assinatura {
     break-inside: avoid;
+  }
+
+  /* Título não fica órfão no fim da página, longe do próprio conteúdo. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
   }
 
   thead {

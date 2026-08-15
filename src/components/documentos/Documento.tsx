@@ -43,7 +43,7 @@ export function Documento({
 
   return createPortal(
     <article className="area-impressao hidden text-[13px] leading-relaxed text-black">
-      <header className="mb-7 text-center">
+      <header className="mb-5 text-center">
         <Image
           src="/logo-escritorio.png"
           alt={escritorio.nome}
@@ -51,7 +51,7 @@ export function Documento({
           height={158}
           unoptimized
           priority
-          className="mx-auto h-24 w-auto"
+          className="mx-auto h-20 w-auto"
         />
       </header>
 
@@ -60,21 +60,22 @@ export function Documento({
         <p className="mt-1 text-center text-[11px] text-black/70">{subtitulo}</p>
       )}
 
-      <div className="mt-6">{children}</div>
+      <div className="mt-5">{children}</div>
 
       {rodape}
 
-      <p className="mt-10">
-        {escritorio.cidade}, {hoje}.
-      </p>
+      {/* Data e assinatura andam juntas: nunca partidas entre páginas. */}
+      <footer className="bloco-assinatura mt-8">
+        <p>
+          {escritorio.cidade}, {hoje}.
+        </p>
 
-      <div className="mt-12">
-        <div className="w-72 border-t border-black pt-1.5">
+        <div className="mt-10 w-72 border-t border-black pt-1.5">
           <p className="font-bold uppercase">{escritorio.nome}</p>
           <p>{escritorio.oab}</p>
           <p>Tel. {escritorio.telefone}</p>
         </div>
-      </div>
+      </footer>
     </article>,
     document.body
   );
