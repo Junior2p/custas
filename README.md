@@ -31,12 +31,19 @@ npm run build      # build de produção
 
 Navegação lateral, no padrão do Gestão de Imóveis:
 
-| Tela | O que faz |
+O menu tem os **tipos de ação**; as etapas de cada um ficam dentro da própria tela.
+
+| Tipo | Etapas |
 |---|---|
-| **Ações Patrimoniais** | Inventário, escritura, usucapião, divórcio, alvará — tudo que se mede por bens. Serviço, cliente, nº de herdeiros, bens e a composição dos custos |
-| **Herdeiros e quinhões** | Detalhamento nominal e rateio — só necessário na hora do inventário, não para cotar |
-| **Proposta** | Valor, condições de pagamento, checklist ✅/❌ e impressão |
-| **Ações Judiciais** | Ações comuns, em dois documentos: **extrato de honorários** (processo em curso, ato a ato pela Tabela OAB/SP) e **proposta de ingresso** (honorários iniciais + êxito + taxa judiciária de 1,5%) |
+| **Ações Patrimoniais** | 1 Apuração · 2 Herdeiros e quinhões · 3 Proposta |
+| **Ações Judiciais** | Dados do processo → documento (extrato ou proposta de ingresso) |
+
+**Ações Patrimoniais** cobre o que se mede por bens: inventário, escritura, usucapião,
+divórcio e alvará. **Ações Judiciais** cobre as ações comuns, em dois documentos —
+*extrato de honorários* (processo em curso, ato a ato pela Tabela OAB/SP) e *proposta de
+ingresso* (honorários iniciais + êxito + taxa judiciária de 1,5%).
+
+Fora do fluxo, no rodapé do menu: **Parametrização** e **Tabelas de cartório**.
 | **Parametrização** | Certidões, multa, UFESP, honorários padrão, condições padrão e dados do escritório |
 | **Tabelas de cartório** | Faixas de Notas e do SRI e a Tabela OAB — editáveis e com importação de CSV |
 
@@ -44,6 +51,10 @@ Navegação lateral, no padrão do Gestão de Imóveis:
 
 Todos passam pelo mesmo layout (`src/components/documentos/Documento.tsx`): logo do
 escritório no topo, título, corpo e assinatura com OAB e telefone.
+
+O documento é montado **como filho direto do `<body>`**, via portal. Na impressão os
+irmãos somem com `display: none` e sobra só ele — sem as páginas em branco que apareciam
+quando a interface era apenas escondida com `visibility`.
 
 **Todo texto é revisável antes de imprimir.** Cada documento tem uma seção *Textos do
 documento* com título, abertura, blocos específicos e observações — o que estiver ali sai

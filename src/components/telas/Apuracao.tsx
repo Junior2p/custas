@@ -7,6 +7,7 @@ import { bemVazio } from "@/lib/orcamento/modelo";
 import { useCustas } from "../Contexto";
 import { BarraOrcamentos } from "../BarraOrcamentos";
 import { BotaoSalvar } from "../BotaoSalvar";
+import { EtapasPatrimoniais } from "../Etapas";
 import { Pagina } from "../Pagina";
 import { Botao, Campo, Interruptor, Numero, Secao, Selecao, Texto, moeda, percentual } from "../ui";
 import { SERVICOS } from "@/lib/dados/servicos";
@@ -51,7 +52,12 @@ export function Apuracao() {
           <BotaoSalvar />
         </div>
       }
-      topo={!apresentacao ? <BarraOrcamentos /> : undefined}
+      topo={
+        <div className="space-y-3">
+          <EtapasPatrimoniais />
+          {!apresentacao && <BarraOrcamentos />}
+        </div>
+      }
     >
 
       {/* ---------------- serviço e cliente ---------------- */}

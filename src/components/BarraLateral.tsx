@@ -3,26 +3,17 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import {
-  Calculator,
-  Gavel,
-  Eye,
-  EyeOff,
-  FileText,
-  Settings2,
-  Table2,
-  Users,
-} from "lucide-react";
+import { Calculator, Eye, EyeOff, Gavel, Settings2, Table2 } from "lucide-react";
 
 import BotaoSair from "./auth/BotaoSair";
 import { useCustas } from "./Contexto";
 import { moeda } from "./ui";
 
+// As etapas de cada tipo (apuração → herdeiros → proposta) ficam dentro
+// da própria tela, em `Etapas.tsx` — o menu guarda só os tipos de ação.
 const ITENS = [
   { href: "/", rotulo: "Ações Patrimoniais", icone: Calculator, interno: false },
   { href: "/acoes", rotulo: "Ações Judiciais", icone: Gavel, interno: false },
-  { href: "/herdeiros", rotulo: "Herdeiros e quinhões", icone: Users, interno: false },
-  { href: "/proposta", rotulo: "Proposta", icone: FileText, interno: false },
   { href: "/parametrizacao", rotulo: "Parametrização", icone: Settings2, interno: true },
   { href: "/tabelas", rotulo: "Tabelas de cartório", icone: Table2, interno: true },
 ];
@@ -53,7 +44,10 @@ export function BarraLateral({ children }: { children: React.ReactNode }) {
 
           <nav className="space-y-0.5 px-2 lg:px-3">
             {itens.map(({ href, rotulo, icone: Icone }) => {
-              const ativo = caminho === href;
+              const ativo =
+                href === "/"
+                  ? ["/", "/herdeiros", "/proposta"].includes(caminho)
+                  : caminho === href;
               return (
                 <Link
                   key={href}

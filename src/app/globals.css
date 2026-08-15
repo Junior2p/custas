@@ -51,10 +51,10 @@ input[type="number"] {
 }
 
 /* ---------- Impressão: sai só o documento ----------
-   A regra é por exclusão: tudo fica invisível e só a área de impressão
-   volta a aparecer. Antes dependia de marcar cada container com
-   `.sem-impressao`, e bastava uma tela nova esquecer a classe para a
-   interface inteira ir parar no papel. */
+   O documento é montado como filho direto do <body> (portal). Aqui os
+   outros filhos diretos somem com `display: none` — usar
+   `visibility: hidden` deixaria o espaço da interface ocupado e o
+   navegador imprimiria páginas em branco depois do documento. */
 @media print {
   @page {
     size: A4;
@@ -65,28 +65,20 @@ input[type="number"] {
   body {
     background: #fff;
     height: auto;
+    margin: 0;
+    padding: 0;
   }
 
-  body * {
-    visibility: hidden !important;
+  body > *:not(.area-impressao) {
+    display: none !important;
   }
 
-  .area-impressao,
-  .area-impressao * {
-    visibility: visible !important;
-  }
-
-  /* Tira o documento do fluxo para não herdar as margens da tela. */
   .area-impressao {
     display: block !important;
-    position: absolute !important;
-    top: 0;
-    left: 0;
-    width: 100%;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
   }
 
   .sem-impressao {

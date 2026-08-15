@@ -3,6 +3,7 @@
 import { Plus, Printer, Trash2 } from "lucide-react";
 
 import { BotaoSalvar } from "../BotaoSalvar";
+import { EtapasPatrimoniais } from "../Etapas";
 import { useCustas } from "../Contexto";
 import { Pagina } from "../Pagina";
 import { DocumentoProposta } from "../documentos/DocumentoProposta";
@@ -27,6 +28,7 @@ export function PropostaTela() {
           </Botao>
         </div>
       }
+      topo={<EtapasPatrimoniais />}
     >
       <Secao titulo="Valor">
         <div className="grid gap-4 sm:grid-cols-3">

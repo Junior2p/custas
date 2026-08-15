@@ -8,7 +8,8 @@
 // ============================================================
 
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import type { DadosEscritorio } from "@/lib/parametrizacao/modelo";
 
@@ -25,14 +26,23 @@ export function Documento({
   children: ReactNode;
   rodape?: ReactNode;
 }) {
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
+
   const hoje = new Date().toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
   });
 
-  return (
-    <article className="area-impressao mt-8 hidden text-[13px] leading-relaxed text-black print:block">
+  // O documento é renderizado como filho direto do <body>. Assim a regra de
+  // impressão esconde os irmãos com `display: none` — e não com
+  // `visibility: hidden`, que preservava o espaço da interface e produzia
+  // páginas em branco depois do documento.
+  if (!montado) return null;
+
+  return createPortal(
+    <article className="area-impressao hidden text-[13px] leading-relaxed text-black">
       <header className="mb-7 text-center">
         <Image
           src="/logo-escritorio.png"
@@ -65,7 +75,8 @@ export function Documento({
           <p>Tel. {escritorio.telefone}</p>
         </div>
       </div>
-    </article>
+    </article>,
+    document.body
   );
 }
 

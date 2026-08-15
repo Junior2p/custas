@@ -5,6 +5,7 @@ import { Plus, Trash2, TriangleAlert, Users } from "lucide-react";
 import type { Herdeiro } from "@/lib/calculo/partilha";
 import { gerarHerdeiros, novoId } from "@/lib/orcamento/modelo";
 import { BotaoSalvar } from "../BotaoSalvar";
+import { EtapasPatrimoniais } from "../Etapas";
 import { useCustas } from "../Contexto";
 import { Pagina } from "../Pagina";
 import { Botao, Campo, Secao, Selecao, Texto, Numero, moeda, percentual } from "../ui";
@@ -51,6 +52,7 @@ export function Herdeiros() {
           <BotaoSalvar />
         </div>
       }
+      topo={<EtapasPatrimoniais />}
     >
       <Secao
         titulo="Quem participa"
