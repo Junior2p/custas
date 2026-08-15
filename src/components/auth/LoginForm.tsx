@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
-import { createClient } from "@/lib/supabase/client";
-
 export default function LoginForm({ configurado }: { configurado: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -18,17 +16,26 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
     setErro("");
     setCarregando(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    try {
+      const resposta = await fetch("/api/entrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, senha }),
+      });
 
-    if (error) {
-      setErro("E-mail ou senha incorretos.");
+      if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        setErro(dados.erro ?? "Não foi possível entrar.");
+        setCarregando(false);
+        return;
+      }
+
+      router.push("/");
+      router.refresh();
+    } catch {
+      setErro("Falha de conexão. Tente de novo.");
       setCarregando(false);
-      return;
     }
-
-    router.push("/");
-    router.refresh();
   }
 
   return (
@@ -36,19 +43,17 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Image
-            src="/jr-monograma.png"
-            alt="JR — Edmilson Lopes Junior"
-            width={92}
-            height={115}
+            src="/logo-escritorio.png"
+            alt="Edmilson Lopes Junior"
+            width={420}
+            height={158}
             priority
             unoptimized
-            className="mx-auto h-24 w-auto"
+            className="mx-auto h-20 w-auto"
           />
           <div className="mt-6 flex items-center justify-center gap-3">
             <span className="h-px w-10 bg-dourado" />
-            <p className="text-xs font-semibold tracking-[0.2em] text-marinho uppercase">
-              Custas
-            </p>
+            <p className="text-xs font-semibold tracking-[0.2em] text-marinho uppercase">Custas</p>
             <span className="h-px w-10 bg-dourado" />
           </div>
           <p className="mt-2 text-xs text-texto-suave">
@@ -58,11 +63,10 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
 
         {!configurado ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-alerta">
-            <p className="font-medium">Banco de dados ainda não configurado.</p>
+            <p className="font-medium">Acesso ainda não configurado.</p>
             <p className="mt-1 text-xs">
-              Defina <code>NEXT_PUBLIC_SUPABASE_URL</code> e{" "}
-              <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> para ativar o login. Enquanto isso, o
-              sistema abre direto no simulador.
+              Defina a variável de ambiente <code>CUSTAS_SENHA</code> no painel da Vercel e
+              publique de novo. Enquanto ela não existir, o sistema fica bloqueado.
             </p>
           </div>
         ) : (
@@ -74,7 +78,7 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete="username"
                 placeholder="seu@email.com"
                 className="w-full rounded-lg border border-borda px-4 py-2.5 text-sm outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/20"
               />
@@ -109,9 +113,7 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
           </form>
         )}
 
-        <p className="mt-8 text-center text-xs text-texto-suave">
-          Acesso restrito ao escritório.
-        </p>
+        <p className="mt-8 text-center text-xs text-texto-suave">Acesso restrito ao escritório.</p>
       </div>
     </div>
   );

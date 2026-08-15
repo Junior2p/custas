@@ -88,19 +88,29 @@ Cada um com seu imposto, catálogo de custos, vias e ação na Tabela OAB.
 As divergências são correções intencionais de erros da planilha, listadas em
 `docs/01-ANALISE-PLANILHA.md` (seção 8).
 
-## Banco
+## Acesso
 
-No SQL Editor do Supabase, rodar na ordem:
+Login de **usuário único, sem banco**. A senha fica em variável de ambiente e nunca no
+código; o servidor devolve um cookie `httpOnly` assinado com HMAC, que o proxy confere a
+cada requisição (validade de 12 horas).
 
-1. `supabase/01-schema.sql`
-2. `supabase/02-seed.sql`
+| Variável | Papel |
+|---|---|
+| `CUSTAS_SENHA` | **Obrigatória.** Sem ela o sistema fica bloqueado em produção |
+| `CUSTAS_EMAIL` | E-mail aceito (padrão: `juniorlopes.2p@gmail.com`) |
+| `CUSTAS_SEGREDO` | Opcional. Sem ele, deriva da senha — trocar a senha encerra as sessões |
 
-Depois preencher `.env.local`:
+Em desenvolvimento, sem `CUSTAS_SENHA`, o app abre direto. Em produção, a ausência da
+variável **bloqueia** o acesso em vez de deixar o sistema aberto.
 
+Para configurar sem passar a senha por terceiros:
+
+```bash
+npx vercel env add CUSTAS_SENHA production --scope elj
 ```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-```
+
+O comando pede o valor no seu terminal. Depois é preciso publicar de novo para a
+variável valer.
 
 ## Deploy
 

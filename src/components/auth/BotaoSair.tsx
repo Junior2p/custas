@@ -3,13 +3,11 @@
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
-
 export default function BotaoSair() {
   const router = useRouter();
 
   async function sair() {
-    await createClient().auth.signOut();
+    await fetch("/api/sair", { method: "POST" });
     router.push("/auth/login");
     router.refresh();
   }
@@ -17,9 +15,11 @@ export default function BotaoSair() {
   return (
     <button
       onClick={sair}
-      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-texto-suave transition hover:bg-slate-100 hover:text-texto"
+      title="Sair"
+      className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-texto-suave transition hover:bg-slate-100 hover:text-texto"
     >
-      <LogOut size={14} /> Sair
+      <LogOut size={14} />
+      <span className="hidden lg:inline">Sair</span>
     </button>
   );
 }

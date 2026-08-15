@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 
+import BotaoSair from "./auth/BotaoSair";
 import { useCustas } from "./Contexto";
 import { moeda } from "./ui";
 
@@ -110,6 +111,8 @@ export function BarraLateral({ children }: { children: React.ReactNode }) {
               {apresentacao ? "Sair da apresentação" : "Apresentação"}
             </span>
           </button>
+
+          <BotaoSair />
         </div>
       </aside>
 
