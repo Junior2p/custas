@@ -27,6 +27,18 @@ npm run typecheck  # verificação de tipos
 npm run build      # build de produção
 ```
 
+## Telas
+
+Navegação lateral, no padrão do Gestão de Imóveis:
+
+| Tela | O que faz |
+|---|---|
+| **Apuração** | Serviço, cliente, quantidade de herdeiros, bens e a composição dos custos nas duas vias |
+| **Herdeiros e quinhões** | Detalhamento nominal e rateio — só necessário na hora do inventário, não para cotar |
+| **Proposta** | Valor, condições de pagamento, checklist ✅/❌ e impressão |
+| **Parametrização** | Certidões, multa, UFESP, honorários padrão, condições padrão e dados do escritório |
+| **Tabelas de cartório** | Faixas de Notas e do SRI e a Tabela OAB — editáveis e com importação de CSV |
+
 ## Como o sistema guarda as cotações
 
 Funciona **sem banco**: cada cotação é gravada no `localStorage` do navegador e a lista
@@ -34,45 +46,26 @@ inteira pode ser **exportada para um arquivo `.json`** e importada de volta (em 
 máquina, ou como backup). O Supabase é opcional — quando as variáveis de ambiente
 existirem, o login é exigido; sem elas, o sistema abre direto em "modo simulação".
 
-Cada cotação guarda **a própria parametrização** (UFESP, certidões, faixas de custas).
-Assim um orçamento de meses atrás continua mostrando os números com que foi feito, mesmo
-depois de os valores de referência mudarem.
+A **parametrização é do escritório** (vale para todas as cotações), mas cada cotação
+guarda uma cópia dos valores com que foi calculada. Assim um orçamento de meses atrás
+não se altera sozinho quando a UFESP muda. Para trazer os valores novos para uma cotação
+antiga existe o botão *Aplicar à cotação aberta*.
+
+Cotações gravadas por versões anteriores são completadas na leitura
+(`normalizarOrcamento`), então atualizar o sistema não quebra o histórico.
+
+## Ajuste manual dos custos
+
+Todo valor da composição é um campo editável. Digitar sobrepõe o cálculo (o campo fica
+dourado) e o botão ao lado devolve ao valor calculado. É assim que se zera ou aumenta
+"Outros Custos" sem mexer na fórmula — inclusive no modo apresentação.
 
 ## Modo apresentação
 
-Botão fixo no canto inferior direito. Ligado, esconde tudo que é de uso interno —
-gestão de cotações, honorários, condições do cálculo e parametrização — deixando à
-mostra apenas bens, cotas-partes, o valor do serviço e a proposta. Para usar quando a
-tela é compartilhada com o cliente.
-
-## Estrutura
-
-```
-src/
-├── app/
-│   ├── (app)/            área autenticada
-│   └── auth/login/       tela de acesso
-├── components/
-│   ├── AreaTrabalho.tsx  alterna o modo apresentação
-│   ├── Simulador.tsx     tela de apuração (bens, herdeiros, custos, proposta)
-│   ├── BarraOrcamentos.tsx  nova/salvar/duplicar/exportar/importar
-│   ├── Proposta.tsx      documento impresso para o cliente
-│   └── ui.tsx            campos, botões e formatadores
-└── lib/
-    ├── calculo/          MOTOR DE CÁLCULO — TypeScript puro, sem banco nem UI
-    │   ├── tipos.ts
-    │   ├── emolumentos.ts    busca de faixa (Notas e SRI) e custas judiciais
-    │   ├── honorarios.ts     tabela OAB · percentual livre · valor fixo
-    │   ├── orcamento.ts      orquestra bens → linhas de custo → totais
-    │   ├── partilha.ts       meação, quinhões e rateio de custos
-    │   └── calculo.test.ts   testes contra os valores reais da planilha
-    ├── orcamento/        modelo da cotação e armazenamento local (+ testes)
-    ├── dados/            carga inicial (tabelas 2025, parâmetros, serviços)
-    └── supabase/         clientes de banco (browser e server)
-supabase/
-├── 01-schema.sql         estrutura do banco
-└── 02-seed.sql           carga inicial (tabelas, parâmetros, catálogo, proposta)
-```
+Botão no rodapé da barra lateral. Para quando a tela é compartilhada com o cliente:
+esconde a **Parametrização**, as **Tabelas**, a gestão de cotações, a configuração de
+**honorários** e as memórias de cálculo. A composição dos custos **continua visível e
+editável** — o que muda é que ela deixa de revelar como cada número foi obtido.
 
 ## Motor de cálculo
 

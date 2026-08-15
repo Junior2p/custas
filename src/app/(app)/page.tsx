@@ -1,5 +1,5 @@
-import { AreaTrabalho } from "@/components/AreaTrabalho";
+import { Apuracao } from "@/components/telas/Apuracao";
 
 export default function Home() {
-  return <AreaTrabalho />;
+  return <Apuracao />;
 }

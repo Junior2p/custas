@@ -3,7 +3,7 @@
 // As cotações ficam no navegador e podem ser exportadas para arquivo.
 // Assim o sistema funciona por completo antes (ou no lugar) do banco.
 // ============================================================
-import type { Orcamento } from "./modelo";
+import { normalizarOrcamento, type Orcamento } from "./modelo";
 
 const CHAVE = "custas.orcamentos";
 const VERSAO = 1;
@@ -21,7 +21,9 @@ export function listar(): Orcamento[] {
     const bruto = window.localStorage.getItem(CHAVE);
     if (!bruto) return [];
     const dados = JSON.parse(bruto) as Arquivo;
-    return Array.isArray(dados.orcamentos) ? dados.orcamentos : [];
+    if (!Array.isArray(dados.orcamentos)) return [];
+    // Cotações de versões anteriores ganham aqui os campos que faltavam.
+    return dados.orcamentos.map(normalizarOrcamento);
   } catch {
     // Guardado corrompido não pode derrubar a tela: começa do zero.
     return [];
@@ -102,7 +104,8 @@ export function importarArquivo(conteudo: string): ResultadoImportacao {
   const existentes = new Map(atual.map((o) => [o.id, o]));
   let substituidos = 0;
 
-  for (const importado of dados.orcamentos) {
+  for (const bruto of dados.orcamentos) {
+    const importado = normalizarOrcamento(bruto);
     if (existentes.has(importado.id)) substituidos++;
     existentes.set(importado.id, importado);
   }

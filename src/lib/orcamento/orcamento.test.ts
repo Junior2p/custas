@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 
 import {
   aplicarServico,
+  gerarHerdeiros,
   orcamentoNovo,
   proximoNumero,
   rotuloOrcamento,
@@ -14,6 +15,7 @@ import {
 // O módulo só toca em `window` dentro das funções, então o import estático
 // é seguro — basta o stub existir antes da primeira chamada.
 import { excluir, importarArquivo, listar, salvar } from "./armazenamento";
+import { PARAMETRIZACAO_PADRAO } from "@/lib/parametrizacao/modelo";
 
 // localStorage mínimo para rodar o armazenamento fora do navegador.
 class MemoriaLocal {
@@ -81,13 +83,48 @@ test("trocar o serviço traz os padrões dele sem perder os bens", () => {
   assert.equal(escritura.bens[0].valorVenal, 250000);
 });
 
-test("voltar para um serviço com herdeiros recria a lista quando ela está vazia", () => {
-  const escritura = aplicarServico(orcamentoNovo(), "escritura");
-  const semHerdeiros = { ...escritura, herdeiros: [] };
-  const inventario = aplicarServico(semHerdeiros, "inventario_consensual");
+test("a quantidade de herdeiros zera na escritura e volta no inventário", () => {
+  const inventario = orcamentoNovo();
+  assert.ok(inventario.qtdHerdeiros > 0);
 
-  assert.ok(inventario.herdeiros.length > 0);
-  assert.ok(inventario.herdeiros.some((h) => h.tipo === "meeiro"));
+  // A escritura não tem herdeiros: a contagem some do cálculo.
+  const escritura = aplicarServico({ ...inventario, qtdHerdeiros: 4 }, "escritura");
+  assert.equal(escritura.qtdHerdeiros, 0);
+
+  // Voltando, sugere 2 — o detalhamento nominal segue sendo opcional.
+  const devolta = aplicarServico(escritura, "inventario_consensual");
+  assert.equal(devolta.qtdHerdeiros, 2);
+  assert.deepEqual(devolta.herdeiros, []);
+});
+
+test("gerarHerdeiros monta a lista nominal a partir da quantidade", () => {
+  const lista = gerarHerdeiros(3, true);
+
+  assert.equal(lista.filter((h) => h.tipo === "herdeiro").length, 3);
+  assert.equal(lista.filter((h) => h.tipo === "meeiro").length, 1);
+
+  const soma = lista
+    .filter((h) => h.tipo === "herdeiro")
+    .reduce((s, h) => s + h.percentual, 0);
+  assert.ok(Math.abs(soma - 1) < 1e-9, "os quinhões precisam fechar em 100%");
+
+  assert.equal(gerarHerdeiros(2, false).length, 2, "sem meeiro, só os herdeiros");
+});
+
+test("uma cotação nova herda a parametrização do escritório", () => {
+  const base = {
+    ...PARAMETRIZACAO_PADRAO,
+    parametros: { ...PARAMETRIZACAO_PADRAO.parametros, certidaoImovel: 137.5, ufesp: 40 },
+    condicoes: { entrada: 30, parcelas: 6, validadeDias: 15 },
+  };
+
+  const o = orcamentoNovo([], "inventario_consensual", base);
+
+  assert.equal(o.parametros.certidaoImovel, 137.5);
+  assert.equal(o.parametros.ufesp, 40);
+  assert.equal(o.entrada, 30);
+  assert.equal(o.parcelas, 6);
+  assert.equal(o.validadeDias, 15);
 });
 
 // ------------------------------------------------------------
@@ -182,4 +219,44 @@ test("cada cotação guarda a própria parametrização", () => {
   const lista = listar();
   const ufesps = lista.map((o) => o.parametros.ufesp).sort();
   assert.deepEqual(ufesps, [34.26, 37.02], "mexer numa cotação não pode alterar a outra");
+});
+
+// ------------------------------------------------------------
+// Compatibilidade com cotações antigas
+// ------------------------------------------------------------
+
+test("cotação gravada por versão anterior é completada ao ser lida", () => {
+  // Formato antigo: sem ajustes, sem qtdHerdeiros, sem validade nem forma de pagamento.
+  const antiga = {
+    id: "antiga-1",
+    numero: "0009/2025",
+    criadoEm: "2025-11-02T10:00:00.000Z",
+    atualizadoEm: "2025-11-02T10:00:00.000Z",
+    cliente: "Espólio antigo",
+    tipoServico: "inventario_consensual",
+    bens: [{ id: "b1", descricao: "Casa", tipo: "imovel", valorVenal: 100000, percentual: 1 }],
+    herdeiros: [
+      { id: "h1", nome: "A", tipo: "herdeiro", percentual: 0.5 },
+      { id: "h2", nome: "B", tipo: "herdeiro", percentual: 0.5 },
+    ],
+  };
+
+  memoria.setItem(
+    "custas.orcamentos",
+    JSON.stringify({ aplicacao: "custas", versao: 1, orcamentos: [antiga] })
+  );
+
+  const [lida] = listar();
+
+  assert.deepEqual(lida.ajustes, {}, "sem isso a tela quebra ao ler os ajustes");
+  assert.equal(lida.qtdHerdeiros, 2, "a contagem é deduzida da lista nominal antiga");
+  assert.ok(lida.validadeDias > 0);
+  assert.equal(lida.formaPagamento, "");
+  assert.equal(lida.bens[0].qtdCertidoes, 1, "campo novo do bem ganha o padrão");
+  assert.equal(lida.bens[0].registrar, true);
+
+  // o que existia é preservado
+  assert.equal(lida.cliente, "Espólio antigo");
+  assert.equal(lida.numero, "0009/2025");
+  assert.equal(lida.bens[0].valorVenal, 100000);
 });

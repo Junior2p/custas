@@ -1,56 +1,71 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Copy, Download, FilePlus2, Save, Trash2, Upload } from "lucide-react";
+import { Copy, Download, FilePlus2, Trash2, Upload } from "lucide-react";
 
 import {
   baixarArquivo,
   excluir as excluirDoArmazenamento,
   importarArquivo,
 } from "@/lib/orcamento/armazenamento";
-import { rotuloOrcamento, type Orcamento } from "@/lib/orcamento/modelo";
+import { novoId, orcamentoNovo, proximoNumero, rotuloOrcamento } from "@/lib/orcamento/modelo";
+import { useCustas } from "./Contexto";
 import { Botao, Selecao } from "./ui";
 
-export function BarraOrcamentos({
-  lista,
-  atual,
-  temAlteracoes,
-  aoAbrir,
-  aoNovo,
-  aoSalvar,
-  aoDuplicar,
-  aoTrocarLista,
-}: {
-  lista: Orcamento[];
-  atual: Orcamento;
-  temAlteracoes: boolean;
-  aoAbrir: (id: string) => void;
-  aoNovo: () => void;
-  aoSalvar: () => void;
-  aoDuplicar: () => void;
-  aoTrocarLista: (lista: Orcamento[], selecionar?: Orcamento) => void;
-}) {
+export function BarraOrcamentos() {
+  const {
+    cotacao,
+    lista,
+    temAlteracoes,
+    parametrizacao,
+    trocarCotacao,
+    trocarLista,
+  } = useCustas();
+
   const inputArquivo = useRef<HTMLInputElement>(null);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
 
-  const salvo = lista.some((o) => o.id === atual.id);
+  const salva = lista.some((o) => o.id === cotacao.id);
 
   function anunciar(tipo: "ok" | "erro", texto: string) {
     setAviso({ tipo, texto });
     setTimeout(() => setAviso(null), 4000);
   }
 
+  function abrir(id: string) {
+    const alvo = lista.find((x) => x.id === id);
+    if (!alvo) return;
+    if (temAlteracoes && !confirm("Há alterações não salvas. Abrir outra cotação mesmo assim?"))
+      return;
+    trocarCotacao(alvo);
+  }
+
+  function duplicar() {
+    const agora = new Date().toISOString();
+    trocarCotacao({
+      ...cotacao,
+      id: novoId(),
+      numero: proximoNumero(lista),
+      cliente: cotacao.cliente ? `${cotacao.cliente} (cópia)` : "",
+      status: "rascunho",
+      criadoEm: agora,
+      atualizadoEm: agora,
+    });
+  }
+
   function excluir() {
-    if (!confirm(`Excluir a cotação ${rotuloOrcamento(atual)}?`)) return;
-    const restante = excluirDoArmazenamento(atual.id);
-    aoTrocarLista(restante, restante[0]);
+    if (!confirm(`Excluir a cotação ${rotuloOrcamento(cotacao)}?`)) return;
+    const restante = excluirDoArmazenamento(cotacao.id);
+    trocarLista(restante);
+    trocarCotacao(restante[0] ?? orcamentoNovo(restante, undefined, parametrizacao));
     anunciar("ok", "Cotação excluída.");
   }
 
   async function importar(arquivo: File) {
     try {
       const { lista: nova, importados, substituidos } = importarArquivo(await arquivo.text());
-      aoTrocarLista(nova, nova[0]);
+      trocarLista(nova);
+      if (nova[0]) trocarCotacao(nova[0]);
       anunciar(
         "ok",
         `${importados} cotação(ões) importada(s)` +
@@ -65,12 +80,12 @@ export function BarraOrcamentos({
     <div className="sem-impressao rounded-xl border border-borda bg-superficie px-4 py-3 shadow-sm">
       <div className="flex flex-wrap items-center gap-2">
         <Selecao
-          value={salvo ? atual.id : ""}
-          onChange={(e) => aoAbrir(e.target.value)}
+          value={salva ? cotacao.id : ""}
+          onChange={(e) => abrir(e.target.value)}
           className="max-w-xs flex-1"
           aria-label="Cotação"
         >
-          {!salvo && <option value="">{rotuloOrcamento(atual)} — não salva</option>}
+          {!salva && <option value="">{rotuloOrcamento(cotacao)} — não salva</option>}
           {lista.map((o) => (
             <option key={o.id} value={o.id}>
               {rotuloOrcamento(o)}
@@ -78,14 +93,13 @@ export function BarraOrcamentos({
           ))}
         </Selecao>
 
-        <Botao onClick={aoSalvar} title="Salvar no navegador">
-          <Save size={15} /> Salvar
-          {temAlteracoes && <span className="ml-0.5 text-dourado">•</span>}
-        </Botao>
-        <Botao variante="secundario" onClick={aoNovo}>
+        <Botao
+          variante="secundario"
+          onClick={() => trocarCotacao(orcamentoNovo(lista, cotacao.tipoServico, parametrizacao))}
+        >
           <FilePlus2 size={15} /> Nova
         </Botao>
-        <Botao variante="secundario" onClick={aoDuplicar} title="Criar uma cópia desta cotação">
+        <Botao variante="secundario" onClick={duplicar} title="Criar uma cópia desta cotação">
           <Copy size={15} /> Duplicar
         </Botao>
 
@@ -93,7 +107,7 @@ export function BarraOrcamentos({
 
         <Botao
           variante="secundario"
-          onClick={() => baixarArquivo(lista.length ? lista : [atual])}
+          onClick={() => baixarArquivo(lista.length ? lista : [cotacao])}
           title="Baixar todas as cotações em um arquivo"
         >
           <Download size={15} /> Exportar
@@ -113,7 +127,7 @@ export function BarraOrcamentos({
           }}
         />
 
-        {salvo && (
+        {salva && (
           <Botao variante="fantasma" onClick={excluir} title="Excluir esta cotação">
             <Trash2 size={15} />
           </Botao>
@@ -122,9 +136,9 @@ export function BarraOrcamentos({
 
       <p className="mt-2 text-[11px] text-texto-suave">
         {lista.length === 0
-          ? "Nenhuma cotação salva ainda. As cotações ficam neste navegador — use Exportar para guardar em arquivo."
+          ? "Nenhuma cotação salva ainda. Elas ficam neste navegador — use Exportar para guardar em arquivo."
           : `${lista.length} cotação(ões) salvas neste navegador.`}
-        {temAlteracoes && salvo && (
+        {temAlteracoes && salva && (
           <span className="ml-1 text-alerta">Há alterações não salvas.</span>
         )}
       </p>

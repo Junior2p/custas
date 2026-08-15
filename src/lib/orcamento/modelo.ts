@@ -5,8 +5,8 @@
 // ============================================================
 import type { Bem, ConfigHonorarios, FaixaCustasJudiciais, Parametros, Via } from "@/lib/calculo/tipos";
 import type { Herdeiro } from "@/lib/calculo/partilha";
-import { FAIXAS_CUSTAS_JUDICIAIS, PARAMETROS_PADRAO } from "@/lib/dados/padroes";
 import { SERVICOS, servicoPorChave } from "@/lib/dados/servicos";
+import { PARAMETRIZACAO_PADRAO, type Parametrizacao } from "@/lib/parametrizacao/modelo";
 
 export type BemComId = Bem & { id: string };
 
@@ -25,6 +25,15 @@ export type Orcamento = {
   status: "rascunho" | "enviado" | "aprovado" | "recusado";
 
   bens: BemComId[];
+  /**
+   * Quantidade de herdeiros — é o que o cálculo usa (certidões pessoais,
+   * valor por herdeiro). Informada direto na cotação.
+   */
+  qtdHerdeiros: number;
+  /**
+   * Detalhamento nominal dos quinhões. Preenchido na aba Herdeiros, quando
+   * o inventário sai do papel — não é necessário para cotar.
+   */
   herdeiros: Herdeiro[];
 
   honorariosModo: ConfigHonorarios["modo"];
@@ -40,7 +49,15 @@ export type Orcamento = {
   valorNegociado: number;
   entrada: number;
   parcelas: number;
+  validadeDias: number;
+  formaPagamento: string;
   itensProposta: ItemProposta[];
+
+  /**
+   * Ajustes manuais por linha de custo: valor fixado à mão ou linha desligada.
+   * É como se zera ou aumenta "Outros Custos" sem mexer na fórmula.
+   */
+  ajustes: Record<string, { valor?: number; incluso?: boolean }>;
 
   /**
    * Parametrização usada nesta cotação. Fica gravada junto para que um
@@ -77,7 +94,11 @@ export function proximoNumero(existentes: Orcamento[]): string {
   return `${String(proximo).padStart(4, "0")}/${ano}`;
 }
 
-export function orcamentoNovo(existentes: Orcamento[] = [], chaveServico?: string): Orcamento {
+export function orcamentoNovo(
+  existentes: Orcamento[] = [],
+  chaveServico?: string,
+  base: Parametrizacao = PARAMETRIZACAO_PADRAO
+): Orcamento {
   const servico = chaveServico ? servicoPorChave(chaveServico) : SERVICOS[0];
   const agora = new Date().toISOString();
 
@@ -93,19 +114,19 @@ export function orcamentoNovo(existentes: Orcamento[] = [], chaveServico?: strin
     status: "rascunho",
 
     bens: [bemVazio()],
-    herdeiros: servico.temHerdeiros
-      ? [
-          { id: novoId(), nome: "Meeiro(a)", tipo: "meeiro", percentual: 0.5 },
-          { id: novoId(), nome: "Herdeiro 1", tipo: "herdeiro", percentual: 0.5 },
-          { id: novoId(), nome: "Herdeiro 2", tipo: "herdeiro", percentual: 0.5 },
-        ]
-      : [],
+    qtdHerdeiros: servico.temHerdeiros ? 2 : 0,
+    herdeiros: [],
 
     honorariosModo: servico.honorariosPadrao.modo,
-    honorariosValor: servico.honorariosPadrao.modo === "fixo" ? servico.honorariosPadrao.valor : 2000,
-    honorariosPercentual: 8,
+    honorariosValor:
+      servico.honorariosPadrao.modo === "fixo"
+        ? servico.honorariosPadrao.valor
+        : base.honorariosPadrao.valor,
+    honorariosPercentual: base.honorariosPadrao.percentual,
     honorariosPercentualCustos:
-      servico.honorariosPadrao.modo === "percentual_custos" ? servico.honorariosPadrao.percentual : 10,
+      servico.honorariosPadrao.modo === "percentual_custos"
+        ? servico.honorariosPadrao.percentual
+        : base.honorariosPadrao.percentualCustos,
     acaoOab: servico.acaoOab ?? "",
 
     aplicarMulta: false,
@@ -113,12 +134,15 @@ export function orcamentoNovo(existentes: Orcamento[] = [], chaveServico?: strin
     viaEscolhida: servico.vias[0],
 
     valorNegociado: 0,
-    entrada: 50,
-    parcelas: 3,
+    entrada: base.condicoes.entrada,
+    parcelas: base.condicoes.parcelas,
+    validadeDias: base.condicoes.validadeDias,
+    formaPagamento: "",
     itensProposta: servico.itensProposta.map((i) => ({ ...i })),
+    ajustes: {},
 
-    parametros: { ...PARAMETROS_PADRAO },
-    faixasCustas: FAIXAS_CUSTAS_JUDICIAIS.map((f) => ({ ...f })),
+    parametros: { ...base.parametros },
+    faixasCustas: base.faixasCustas.map((f) => ({ ...f })),
     aliquotaImposto: null,
   };
 }
@@ -141,13 +165,55 @@ export function aplicarServico(orcamento: Orcamento, chave: string): Orcamento {
       ? orcamento.viaEscolhida
       : servico.vias[0],
     aliquotaImposto: null,
-    herdeiros:
-      servico.temHerdeiros && orcamento.herdeiros.length === 0
-        ? [
-            { id: novoId(), nome: "Meeiro(a)", tipo: "meeiro", percentual: 0.5 },
-            { id: novoId(), nome: "Herdeiro 1", tipo: "herdeiro", percentual: 1 },
-          ]
-        : orcamento.herdeiros,
+    // Serviço sem herdeiros zera a contagem; ao voltar, sugere 2.
+    qtdHerdeiros: servico.temHerdeiros ? orcamento.qtdHerdeiros || 2 : 0,
+  };
+}
+
+/** Gera a lista nominal a partir da quantidade informada na cotação. */
+export function gerarHerdeiros(quantidade: number, comMeeiro: boolean): Herdeiro[] {
+  const lista: Herdeiro[] = [];
+  if (comMeeiro) {
+    lista.push({ id: novoId(), nome: "Meeiro(a)", tipo: "meeiro", percentual: 0.5 });
+  }
+  const fatia = quantidade > 0 ? 1 / quantidade : 0;
+  for (let i = 0; i < quantidade; i++) {
+    lista.push({
+      id: novoId(),
+      nome: `Herdeiro ${i + 1}`,
+      tipo: "herdeiro",
+      percentual: fatia,
+    });
+  }
+  return lista;
+}
+
+/**
+ * Completa uma cotação lida do armazenamento ou de um arquivo.
+ * Cotações gravadas por versões anteriores não têm os campos mais novos —
+ * sem isso a tela quebra ao ler, por exemplo, `ajustes` inexistente.
+ */
+export function normalizarOrcamento(bruto: Partial<Orcamento>): Orcamento {
+  const modelo = orcamentoNovo();
+  const herdeiros = bruto.herdeiros ?? [];
+
+  return {
+    ...modelo,
+    ...bruto,
+    id: bruto.id ?? modelo.id,
+    numero: bruto.numero ?? modelo.numero,
+    bens: (bruto.bens ?? []).map((b) => ({ ...bemVazio(), ...b })),
+    herdeiros,
+    // Versões antigas guardavam só a lista nominal; a contagem vem dela.
+    qtdHerdeiros:
+      bruto.qtdHerdeiros ?? herdeiros.filter((h) => h.tipo === "herdeiro").length,
+    itensProposta: bruto.itensProposta ?? modelo.itensProposta,
+    ajustes: bruto.ajustes ?? {},
+    validadeDias: bruto.validadeDias ?? modelo.validadeDias,
+    formaPagamento: bruto.formaPagamento ?? "",
+    parametros: { ...modelo.parametros, ...bruto.parametros },
+    faixasCustas: bruto.faixasCustas?.length ? bruto.faixasCustas : modelo.faixasCustas,
+    aliquotaImposto: bruto.aliquotaImposto ?? null,
   };
 }
 
