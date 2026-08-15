@@ -8,6 +8,7 @@ import { PARAMETRIZACAO_PADRAO } from "@/lib/parametrizacao/modelo";
 import { useCustas } from "../Contexto";
 import { Pagina } from "../Pagina";
 import { Botao, Campo, Numero, Secao, Selecao, Texto, moeda } from "../ui";
+import { SecaoAcesso } from "./SecaoAcesso";
 
 export function Parametrizacao() {
   const { parametrizacao: p, atualizarParametrizacao, cotacao, atualizar } = useCustas();
@@ -61,6 +62,8 @@ export function Parametrizacao() {
         que foi calculada. Para trazer os valores novos para a cotação aberta, use{" "}
         <em>Aplicar à cotação aberta</em>.
       </div>
+
+      <SecaoAcesso />
 
       {/* ---------------- valores de base ---------------- */}
       <Secao titulo="Custos de base" descricao="Certidões, multa, UFESP e percentuais.">

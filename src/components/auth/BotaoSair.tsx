@@ -1,25 +1,25 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
-export default function BotaoSair() {
-  const router = useRouter();
+import { fecharTrava } from "@/lib/auth/trava";
 
+export default function BotaoSair() {
   async function sair() {
-    await fetch("/api/sair", { method: "POST" });
-    router.push("/auth/login");
-    router.refresh();
+    fecharTrava();
+    // Encerra também a sessão de servidor, quando existir (CUSTAS_CODIGO).
+    await fetch("/api/sair", { method: "POST" }).catch(() => {});
+    window.location.href = "/";
   }
 
   return (
     <button
       onClick={sair}
-      title="Sair"
+      title="Bloquear o sistema"
       className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-texto-suave transition hover:bg-slate-100 hover:text-texto"
     >
       <LogOut size={14} />
-      <span className="hidden lg:inline">Sair</span>
+      <span className="hidden lg:inline">Bloquear</span>
     </button>
   );
 }

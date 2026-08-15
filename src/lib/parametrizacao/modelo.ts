@@ -28,6 +28,11 @@ export type CondicoesPadrao = {
   validadeDias: number;
 };
 
+export type Acesso = {
+  /** SHA-256 do código validador. Vazio = sistema sem trava. */
+  codigoHash: string;
+};
+
 export type Parametrizacao = {
   parametros: Parametros;
   faixasCustas: FaixaCustasJudiciais[];
@@ -43,6 +48,7 @@ export type Parametrizacao = {
   };
   escritorio: DadosEscritorio;
   condicoes: CondicoesPadrao;
+  acesso: Acesso;
 };
 
 export const PARAMETRIZACAO_PADRAO: Parametrizacao = {
@@ -69,6 +75,7 @@ export const PARAMETRIZACAO_PADRAO: Parametrizacao = {
     parcelas: 3,
     validadeDias: 30,
   },
+  acesso: { codigoHash: "" },
 };
 
 /**
@@ -98,6 +105,7 @@ export function normalizar(bruto: Partial<Parametrizacao> | null | undefined): P
     },
     escritorio: { ...PARAMETRIZACAO_PADRAO.escritorio, ...bruto.escritorio },
     condicoes: { ...PARAMETRIZACAO_PADRAO.condicoes, ...bruto.condicoes },
+    acesso: { ...PARAMETRIZACAO_PADRAO.acesso, ...bruto.acesso },
   };
 }
 
@@ -111,6 +119,7 @@ function estruturaClonada(p: Parametrizacao): Parametrizacao {
     honorariosPadrao: { ...p.honorariosPadrao },
     escritorio: { ...p.escritorio },
     condicoes: { ...p.condicoes },
+    acesso: { ...p.acesso },
   };
 }
 

@@ -90,27 +90,32 @@ As divergências são correções intencionais de erros da planilha, listadas em
 
 ## Acesso
 
-Login de **usuário único, sem banco**. A senha fica em variável de ambiente e nunca no
-código; o servidor devolve um cookie `httpOnly` assinado com HMAC, que o proxy confere a
-cada requisição (validade de 12 horas).
+Duas camadas, ambas sem banco:
+
+**1. Código validador cadastrado na tela** (Parametrização → Acesso). É o caminho normal:
+o sistema pede o código ao abrir. Guarda-se apenas o **SHA-256** — o código em si não fica
+salvo em lugar nenhum e não vai no arquivo exportado. A liberação vale enquanto a aba
+estiver aberta.
+
+Esqueceu? A tela de entrada tem *Esqueci o código*: confirmando o e-mail cadastrado em
+Parametrização → Dados do escritório, o código é **redefinido** (não há como reenviá-lo —
+o sistema não conhece o código, só a impressão digital dele).
+
+> Esta camada roda no navegador: é uma **trava de conveniência**. Ela impede o acesso
+> casual, não um ataque. O que a torna suficiente aqui é que as cotações ficam no
+> `localStorage` de cada navegador — não há dado de cliente no servidor.
+
+**2. Código no servidor** (opcional, inviolável). Defina `CUSTAS_CODIGO` e a validação
+passa a acontecer antes de a página carregar, com cookie `httpOnly` assinado em HMAC:
+
+```bash
+npx vercel env add CUSTAS_CODIGO production --scope elj
+```
 
 | Variável | Papel |
 |---|---|
-| `CUSTAS_SENHA` | **Obrigatória.** Sem ela o sistema fica bloqueado em produção |
-| `CUSTAS_EMAIL` | E-mail aceito (padrão: `juniorlopes.2p@gmail.com`) |
-| `CUSTAS_SEGREDO` | Opcional. Sem ele, deriva da senha — trocar a senha encerra as sessões |
-
-Em desenvolvimento, sem `CUSTAS_SENHA`, o app abre direto. Em produção, a ausência da
-variável **bloqueia** o acesso em vez de deixar o sistema aberto.
-
-Para configurar sem passar a senha por terceiros:
-
-```bash
-npx vercel env add CUSTAS_SENHA production --scope elj
-```
-
-O comando pede o valor no seu terminal. Depois é preciso publicar de novo para a
-variável valer.
+| `CUSTAS_CODIGO` | Ativa a proteção de servidor. Ausente = só a trava local |
+| `CUSTAS_SEGREDO` | Opcional. Sem ele deriva do código — trocá-lo encerra as sessões |
 
 ## Deploy
 

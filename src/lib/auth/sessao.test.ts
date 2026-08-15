@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-process.env.CUSTAS_SENHA = "senha-para-teste";
+process.env.CUSTAS_CODIGO = "codigo-para-teste";
 process.env.CUSTAS_SEGREDO = "segredo-para-teste";
 
 import { COOKIE_SESSAO, criarSessao, iguais, sessaoValida } from "./sessao";
@@ -52,7 +52,7 @@ test("trocar o segredo invalida as sessões em aberto", async () => {
   process.env.CUSTAS_SEGREDO = "segredo-para-teste";
 });
 
-test("a comparação de senha é feita caractere a caractere, sem atalho", () => {
+test("a comparação do código é feita caractere a caractere, sem atalho", () => {
   assert.ok(iguais("abc", "abc"));
   assert.equal(iguais("abc", "abd"), false);
   assert.equal(iguais("abc", "abcd"), false, "tamanhos diferentes nunca batem");

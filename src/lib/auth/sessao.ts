@@ -1,34 +1,30 @@
 // ============================================================
-// SESSÃO — login de usuário único, sem banco.
+// SESSÃO — acesso por código validador, sem banco.
 //
-// A senha fica em variável de ambiente (nunca no código nem no
-// repositório). Ao entrar, o servidor devolve um cookie httpOnly
+// O código fica em variável de ambiente (nunca no código nem no
+// repositório). Ao validar, o servidor devolve um cookie httpOnly
 // assinado com HMAC; o proxy só confere a assinatura e a validade.
 // ============================================================
 
 export const COOKIE_SESSAO = "custas_sessao";
 const DURACAO_HORAS = 12;
 
-/** Senha configurada. Sem ela não há login possível. */
-export const senhaConfigurada = () => (process.env.CUSTAS_SENHA ?? "").trim();
-
-/** E-mail aceito. Serve de conferência — a senha é o que protege. */
-export const emailConfigurado = () =>
-  (process.env.CUSTAS_EMAIL ?? "juniorlopes.2p@gmail.com").trim().toLowerCase();
+/** Código configurado no servidor. Sem ele não há acesso possível. */
+export const codigoConfigurado = () => (process.env.CUSTAS_CODIGO ?? "").trim();
 
 /**
- * O segredo da assinatura deriva da própria senha quando não é informado —
- * assim basta configurar uma variável. Trocar a senha invalida as sessões
+ * O segredo da assinatura deriva do próprio código quando não é informado —
+ * assim basta configurar uma variável. Trocar o código invalida as sessões
  * em aberto, que é o comportamento desejado.
  */
-const segredo = () => process.env.CUSTAS_SEGREDO?.trim() || `custas::${senhaConfigurada()}`;
+const segredo = () => process.env.CUSTAS_SEGREDO?.trim() || `custas::${codigoConfigurado()}`;
 
 /**
- * Em produção, um app sem senha configurada é bloqueado em vez de ficar
- * aberto: é preferível derrubar o acesso a publicar os dados sem querer.
+ * A proteção de servidor só entra quando CUSTAS_CODIGO existe. Sem ela,
+ * quem controla o acesso é a trava local cadastrada na Parametrização
+ * (ver src/lib/auth/trava.ts).
  */
-export const exigeLogin = () =>
-  Boolean(senhaConfigurada()) || process.env.NODE_ENV === "production";
+export const exigeAcesso = () => Boolean(codigoConfigurado());
 
 async function chave() {
   return crypto.subtle.importKey(

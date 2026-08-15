@@ -1,15 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { COOKIE_SESSAO, exigeLogin, sessaoValida } from "@/lib/auth/sessao";
+import { COOKIE_SESSAO, exigeAcesso, sessaoValida } from "@/lib/auth/sessao";
 
 // Next 16 renomeou a convenção: o antigo `middleware.ts` agora é `proxy.ts`.
 export async function proxy(request: NextRequest) {
-  // Em desenvolvimento, sem senha configurada, o app abre direto.
-  if (!exigeLogin()) return NextResponse.next({ request });
+  // Em desenvolvimento, sem código configurado, o app abre direto.
+  if (!exigeAcesso()) return NextResponse.next({ request });
 
   const { pathname } = request.nextUrl;
 
-  // A própria rota de login precisa ficar acessível.
+  // As rotas de validação precisam ficar acessíveis.
   if (pathname.startsWith("/api/entrar") || pathname.startsWith("/api/sair")) {
     return NextResponse.next({ request });
   }

@@ -6,12 +6,11 @@ import Image from "next/image";
 
 export default function LoginForm({ configurado }: { configurado: boolean }) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
+  const [codigo, setCodigo] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
 
-  async function entrar(e: React.FormEvent) {
+  async function validar(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
     setCarregando(true);
@@ -20,12 +19,13 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
       const resposta = await fetch("/api/entrar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
+        body: JSON.stringify({ codigo }),
       });
 
       if (!resposta.ok) {
         const dados = await resposta.json().catch(() => ({}));
         setErro(dados.erro ?? "Não foi possível entrar.");
+        setCodigo("");
         setCarregando(false);
         return;
       }
@@ -65,35 +65,23 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-alerta">
             <p className="font-medium">Acesso ainda não configurado.</p>
             <p className="mt-1 text-xs">
-              Defina a variável de ambiente <code>CUSTAS_SENHA</code> no painel da Vercel e
+              Defina a variável de ambiente <code>CUSTAS_CODIGO</code> no painel da Vercel e
               publique de novo. Enquanto ela não existir, o sistema fica bloqueado.
             </p>
           </div>
         ) : (
-          <form onSubmit={entrar} className="space-y-4">
+          <form onSubmit={validar} className="space-y-4">
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-marinho">E-mail</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="username"
-                placeholder="seu@email.com"
-                className="w-full rounded-lg border border-borda px-4 py-2.5 text-sm outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/20"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-marinho">Senha</span>
+              <span className="mb-1 block text-sm font-medium text-marinho">Código validador</span>
               <input
                 type="password"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
                 required
+                autoFocus
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full rounded-lg border border-borda px-4 py-2.5 text-sm outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/20"
+                className="w-full rounded-lg border border-borda px-4 py-2.5 text-center text-lg tracking-widest outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/20"
               />
             </label>
 
@@ -105,10 +93,10 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
 
             <button
               type="submit"
-              disabled={carregando}
+              disabled={carregando || !codigo}
               className="w-full rounded-lg bg-marinho py-2.5 font-medium text-white transition hover:bg-marinho-700 disabled:opacity-60"
             >
-              {carregando ? "Verificando..." : "Entrar"}
+              {carregando ? "Validando..." : "Entrar"}
             </button>
           </form>
         )}
