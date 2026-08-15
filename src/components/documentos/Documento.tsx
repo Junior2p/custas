@@ -42,7 +42,7 @@ export function Documento({
   if (!montado) return null;
 
   return createPortal(
-    <article className="area-impressao hidden text-[13px] leading-relaxed text-black">
+    <article className="area-impressao text-[13px] leading-relaxed text-black">
       <header className="mb-5 text-center">
         <Image
           src="/logo-escritorio.png"

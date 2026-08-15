@@ -4,6 +4,7 @@ import { Plus, Printer, Trash2 } from "lucide-react";
 
 import { BotaoSalvar } from "../BotaoSalvar";
 import { EtapasPatrimoniais } from "../Etapas";
+import { imprimirDocumento } from "@/lib/imprimir";
 import { useCustas } from "../Contexto";
 import { Pagina } from "../Pagina";
 import { DocumentoProposta } from "../documentos/DocumentoProposta";
@@ -23,7 +24,7 @@ export function PropostaTela() {
       acao={
         <div className="flex items-center gap-2">
           <BotaoSalvar />
-          <Botao onClick={() => window.print()}>
+          <Botao onClick={imprimirDocumento}>
             <Printer size={16} /> Imprimir / PDF
           </Botao>
         </div>

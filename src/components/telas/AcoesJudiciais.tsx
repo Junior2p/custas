@@ -18,6 +18,7 @@ import {
   type TipoDocumento,
 } from "@/lib/acao/modelo";
 import { excluirAcao } from "@/lib/acao/armazenamento";
+import { imprimirDocumento } from "@/lib/imprimir";
 import { useCustas } from "../Contexto";
 import { DocumentoAcao } from "../documentos/DocumentoAcao";
 import { Pagina } from "../Pagina";
@@ -75,7 +76,7 @@ export function AcoesJudiciais() {
               {moeda(ehExtrato ? t.totalExtrato : t.totalIngresso)}
             </p>
           </div>
-          <Botao onClick={() => window.print()}>
+          <Botao onClick={imprimirDocumento}>
             <Printer size={16} /> Imprimir
           </Botao>
         </div>

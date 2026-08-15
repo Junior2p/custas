@@ -50,57 +50,34 @@ input[type="number"] {
   appearance: textfield;
 }
 
-/* ---------- Impressão: sai só o documento ----------
-   O documento é montado como filho direto do <body> (portal). Aqui os
-   outros filhos diretos somem com `display: none` — usar
-   `visibility: hidden` deixaria o espaço da interface ocupado e o
-   navegador imprimiria páginas em branco depois do documento. */
+/* ---------- Impressão ----------
+   O documento NÃO é impresso a partir desta página: `src/lib/imprimir.ts`
+   monta um iframe próprio e imprime de lá. Depender de `@media print`
+   sobre a aplicação inteira deixava o Safari gerando PDF em branco e a
+   tela apagada até recarregar.
+
+   Aqui o documento fica apenas oculto — ele serve de fonte para o iframe. */
+.area-impressao {
+  display: none;
+}
+
 @media print {
-  @page {
-    size: A4;
-    margin: 16mm 15mm;
-  }
-
-  html,
-  body {
-    background: #fff;
-    height: auto;
-    margin: 0;
-    padding: 0;
-  }
-
+  /* Rede de segurança: se alguém acionar a impressão do navegador
+     (Ctrl/Cmd+P) direto na aplicação, sai o documento, não a interface. */
   body > *:not(.area-impressao) {
     display: none !important;
   }
 
   .area-impressao {
     display: block !important;
-    margin: 0;
-    padding: 0;
-    border: none;
-    box-shadow: none;
   }
 
   .sem-impressao {
     display: none !important;
   }
 
-  /* Não corta tabelas, listas nem a assinatura no meio de uma quebra. */
-  table,
-  ul,
-  img,
-  .bloco-assinatura {
-    break-inside: avoid;
-  }
-
-  /* Título não fica órfão no fim da página, longe do próprio conteúdo. */
-  h1,
-  h2,
-  h3 {
-    break-after: avoid;
-  }
-
-  thead {
-    display: table-header-group;
+  @page {
+    size: A4;
+    margin: 16mm 15mm;
   }
 }

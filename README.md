@@ -52,9 +52,16 @@ Fora do fluxo, no rodapé do menu: **Parametrização** e **Tabelas de cartório
 Todos passam pelo mesmo layout (`src/components/documentos/Documento.tsx`): logo do
 escritório no topo, título, corpo e assinatura com OAB e telefone.
 
-O documento é montado **como filho direto do `<body>`**, via portal. Na impressão os
-irmãos somem com `display: none` e sobra só ele — sem as páginas em branco que apareciam
-quando a interface era apenas escondida com `visibility`.
+**A impressão sai de um iframe próprio** (`src/lib/imprimir.ts`), não da página. O
+documento é copiado para um quadro invisível do tamanho de uma folha, junto com as
+folhas de estilo, e o `print()` é chamado ali.
+
+Depender de `@media print` sobre a aplicação inteira se mostrou frágil: no Safari o PDF
+saía em branco e a tela ficava apagada até recarregar, porque a folha de impressão
+escondia a interface real. Com o iframe, a página em que se trabalha não é tocada.
+
+A função espera as folhas de estilo e as imagens carregarem antes de disparar o diálogo
+— sem isso o Safari imprime antes de ter o que desenhar.
 
 **Todo texto é revisável antes de imprimir.** Cada documento tem uma seção *Textos do
 documento* com título, abertura, blocos específicos e observações — o que estiver ali sai
