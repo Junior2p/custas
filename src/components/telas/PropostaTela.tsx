@@ -2,6 +2,7 @@
 
 import { Plus, Printer, Trash2 } from "lucide-react";
 
+import { BotaoSalvar } from "../BotaoSalvar";
 import { useCustas } from "../Contexto";
 import { Pagina } from "../Pagina";
 import { DocumentoProposta } from "../documentos/DocumentoProposta";
@@ -19,9 +20,12 @@ export function PropostaTela() {
       titulo="Proposta"
       descricao="O documento que vai ao cliente."
       acao={
-        <Botao onClick={() => window.print()}>
-          <Printer size={16} /> Imprimir / PDF
-        </Botao>
+        <div className="flex items-center gap-2">
+          <BotaoSalvar />
+          <Botao onClick={() => window.print()}>
+            <Printer size={16} /> Imprimir / PDF
+          </Botao>
+        </div>
       }
     >
       <Secao titulo="Valor">

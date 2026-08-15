@@ -9,7 +9,6 @@ import {
   Eye,
   EyeOff,
   FileText,
-  Save,
   Settings2,
   Table2,
   Users,
@@ -30,7 +29,7 @@ const ITENS = [
 
 export function BarraLateral({ children }: { children: React.ReactNode }) {
   const caminho = usePathname();
-  const { apresentacao, alternarApresentacao, cotacao, temAlteracoes, salvarCotacao, totalProposta } =
+  const { apresentacao, alternarApresentacao, cotacao, temAlteracoes, totalProposta } =
     useCustas();
 
   // Em apresentação some tudo que é bastidor: parametrização e tabelas.
@@ -83,17 +82,10 @@ export function BarraLateral({ children }: { children: React.ReactNode }) {
             <p className="mt-1 text-sm font-semibold tabular-nums text-marinho">
               {moeda(totalProposta)}
             </p>
+            {temAlteracoes && (
+              <p className="mt-1 text-[11px] text-alerta">alterações não salvas</p>
+            )}
           </div>
-
-          <button
-            onClick={salvarCotacao}
-            title="Salvar cotação"
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-marinho px-3 py-2 text-sm font-medium text-white transition hover:bg-marinho-700"
-          >
-            <Save size={16} />
-            <span className="hidden lg:inline">Salvar</span>
-            {temAlteracoes && <span className="text-dourado">•</span>}
-          </button>
 
           <button
             onClick={alternarApresentacao}

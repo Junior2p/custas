@@ -40,11 +40,18 @@ export function AcoesJudiciais() {
   const salva = acoes.some((x) => x.id === a.id);
 
   const alterarAto = (id: string, campos: Partial<(typeof a.atos)[number]>) =>
-    atualizarAcao({ atos: a.atos.map((x) => (x.id === id ? { ...x, ...campos } : x)) });
-
-  const alterarCusto = (id: string, campos: Partial<(typeof a.custosExtras)[number]>) =>
     atualizarAcao({
-      custosExtras: a.custosExtras.map((x) => (x.id === id ? { ...x, ...campos } : x)),
+      atos: a.atos.map((x) => (x.id === id ? { ...x, ...campos } : x)),
+    });
+
+  const alterarCusto = (
+    id: string,
+    campos: Partial<(typeof a.custosExtras)[number]>,
+  ) =>
+    atualizarAcao({
+      custosExtras: a.custosExtras.map((x) =>
+        x.id === id ? { ...x, ...campos } : x,
+      ),
     });
 
   function excluir() {
@@ -73,65 +80,67 @@ export function AcoesJudiciais() {
           </Botao>
         </div>
       }
-    >
-      {/* ---------------- gestão ---------------- */}
-      {!apresentacao && (
-        <div className="rounded-xl border border-borda bg-superficie px-4 py-3 shadow-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <Selecao
-              value={salva ? a.id : ""}
-              onChange={(e) => {
-                const alvo = acoes.find((x) => x.id === e.target.value);
-                if (alvo) trocarAcao(alvo);
-              }}
-              className="max-w-xs flex-1"
-              aria-label="Documento"
-            >
-              {!salva && <option value="">{rotuloAcao(a)} — não salvo</option>}
-              {acoes.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {rotuloAcao(x)}
-                </option>
-              ))}
-            </Selecao>
+      topo={
+        !apresentacao ? (
+          <div className="rounded-xl border border-borda bg-superficie px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Selecao
+                value={salva ? a.id : ""}
+                onChange={(e) => {
+                  const alvo = acoes.find((x) => x.id === e.target.value);
+                  if (alvo) trocarAcao(alvo);
+                }}
+                className="max-w-xs flex-1"
+                aria-label="Documento"
+              >
+                {!salva && (
+                  <option value="">{rotuloAcao(a)} — não salvo</option>
+                )}
+                {acoes.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {rotuloAcao(x)}
+                  </option>
+                ))}
+              </Selecao>
 
-            <Botao onClick={salvarAcao}>
-              <Save size={15} /> Salvar
-            </Botao>
-            <Botao
-              variante="secundario"
-              onClick={() => trocarAcao(acaoNova(acoes, a.tipoDocumento))}
-            >
-              <FilePlus2 size={15} /> Novo
-            </Botao>
-            <Botao
-              variante="secundario"
-              onClick={() => {
-                const agora = new Date().toISOString();
-                trocarAcao({
-                  ...a,
-                  id: novoId(),
-                  numero: proximoNumero(acoes),
-                  cliente: a.cliente ? `${a.cliente} (cópia)` : "",
-                  criadoEm: agora,
-                  atualizadoEm: agora,
-                });
-              }}
-            >
-              <Copy size={15} /> Duplicar
-            </Botao>
-            {salva && (
-              <Botao variante="fantasma" onClick={excluir} title="Excluir">
-                <Trash2 size={15} />
+              <Botao onClick={salvarAcao}>
+                <Save size={15} /> Salvar
               </Botao>
-            )}
+              <Botao
+                variante="secundario"
+                onClick={() => trocarAcao(acaoNova(acoes, a.tipoDocumento))}
+              >
+                <FilePlus2 size={15} /> Novo
+              </Botao>
+              <Botao
+                variante="secundario"
+                onClick={() => {
+                  const agora = new Date().toISOString();
+                  trocarAcao({
+                    ...a,
+                    id: novoId(),
+                    numero: proximoNumero(acoes),
+                    cliente: a.cliente ? `${a.cliente} (cópia)` : "",
+                    criadoEm: agora,
+                    atualizadoEm: agora,
+                  });
+                }}
+              >
+                <Copy size={15} /> Duplicar
+              </Botao>
+              {salva && (
+                <Botao variante="fantasma" onClick={excluir} title="Excluir">
+                  <Trash2 size={15} />
+                </Botao>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] text-texto-suave">
+              {acoes.length} documento(s) salvos neste navegador.
+            </p>
           </div>
-          <p className="mt-2 text-[11px] text-texto-suave">
-            {acoes.length} documento(s) salvos neste navegador.
-          </p>
-        </div>
-      )}
-
+        ) : undefined
+      }
+    >
       {/* ---------------- dados ---------------- */}
       <Secao titulo="Dados do processo">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -139,11 +148,15 @@ export function AcoesJudiciais() {
             <Selecao
               value={a.tipoDocumento}
               onChange={(e) =>
-                trocarAcao(aplicarTipoDocumento(a, e.target.value as TipoDocumento))
+                trocarAcao(
+                  aplicarTipoDocumento(a, e.target.value as TipoDocumento),
+                )
               }
             >
               <option value="proposta">Proposta de ingresso / defesa</option>
-              <option value="extrato">Extrato de honorários (processo em curso)</option>
+              <option value="extrato">
+                Extrato de honorários (processo em curso)
+              </option>
             </Selecao>
           </Campo>
           <Campo rotulo="Cliente" className="sm:col-span-2">
@@ -174,7 +187,11 @@ export function AcoesJudiciais() {
 
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <Campo rotulo="Valor da causa">
-            <Numero moeda valor={a.valorCausa} aoMudar={(v) => atualizarAcao({ valorCausa: v })} />
+            <Numero
+              moeda
+              valor={a.valorCausa}
+              aoMudar={(v) => atualizarAcao({ valorCausa: v })}
+            />
           </Campo>
           <Campo rotulo="Data de distribuição">
             <input
@@ -189,10 +206,15 @@ export function AcoesJudiciais() {
               className="w-full rounded-lg border border-borda bg-white px-3 py-2 text-sm outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/15"
             />
           </Campo>
-          <Campo rotulo="Tempo de atuação (meses)" dica="Calculado pela distribuição; editável.">
+          <Campo
+            rotulo="Tempo de atuação (meses)"
+            dica="Calculado pela distribuição; editável."
+          >
             <Numero
               valor={a.tempoAtuacaoMeses}
-              aoMudar={(v) => atualizarAcao({ tempoAtuacaoMeses: Math.max(0, Math.round(v)) })}
+              aoMudar={(v) =>
+                atualizarAcao({ tempoAtuacaoMeses: Math.max(0, Math.round(v)) })
+              }
             />
           </Campo>
         </div>
@@ -218,7 +240,9 @@ export function AcoesJudiciais() {
                 <tr className="border-b border-borda text-left text-xs text-texto-suave">
                   <th className="pb-2 font-medium">Ato processual</th>
                   <th className="pb-2 text-right font-medium">Mínimo OAB</th>
-                  <th className="pb-2 text-right font-medium">Complexidade %</th>
+                  <th className="pb-2 text-right font-medium">
+                    Complexidade %
+                  </th>
                   <th className="pb-2 text-right font-medium">Com redução</th>
                   <th className="pb-2 text-right font-medium">Êxito %</th>
                   <th className="pb-2 text-right font-medium">Valor final</th>
@@ -231,7 +255,9 @@ export function AcoesJudiciais() {
                     <td className="py-2 pr-2">
                       <Texto
                         value={ato.descricao}
-                        onChange={(e) => alterarAto(ato.id, { descricao: e.target.value })}
+                        onChange={(e) =>
+                          alterarAto(ato.id, { descricao: e.target.value })
+                        }
                         placeholder="Ex.: Contestação"
                       />
                     </td>
@@ -264,7 +290,9 @@ export function AcoesJudiciais() {
                       <Botao
                         variante="fantasma"
                         onClick={() =>
-                          atualizarAcao({ atos: a.atos.filter((x) => x.id !== ato.id) })
+                          atualizarAcao({
+                            atos: a.atos.filter((x) => x.id !== ato.id),
+                          })
                         }
                         aria-label="Remover ato"
                       >
@@ -279,7 +307,9 @@ export function AcoesJudiciais() {
                   <td className="pt-3" colSpan={5}>
                     Subtotal honorários
                   </td>
-                  <td className="pt-3 text-right tabular-nums">{moeda(t.honorariosAtos)}</td>
+                  <td className="pt-3 text-right tabular-nums">
+                    {moeda(t.honorariosAtos)}
+                  </td>
                   <td />
                 </tr>
               </tfoot>
@@ -299,13 +329,19 @@ export function AcoesJudiciais() {
                 aoMudar={(v) => atualizarAcao({ honorariosIniciais: v })}
               />
             </Campo>
-            <Campo rotulo="Êxito (%)" dica="Sobre o que for efetivamente recebido.">
+            <Campo
+              rotulo="Êxito (%)"
+              dica="Sobre o que for efetivamente recebido."
+            >
               <Numero
                 valor={a.percentualExito}
                 aoMudar={(v) => atualizarAcao({ percentualExito: v })}
               />
             </Campo>
-            <Campo rotulo="Taxa judiciária (%)" dica="Em regra 1,5% do valor da causa.">
+            <Campo
+              rotulo="Taxa judiciária (%)"
+              dica="Em regra 1,5% do valor da causa."
+            >
               <Numero
                 valor={a.percentualCustas}
                 aoMudar={(v) => atualizarAcao({ percentualCustas: v })}
@@ -314,8 +350,8 @@ export function AcoesJudiciais() {
           </div>
 
           <div className="mt-4 rounded-lg bg-marinho-50 px-4 py-3 text-sm text-marinho">
-            Honorários iniciais <strong>{moeda(a.honorariosIniciais)}</strong> + taxa judiciária{" "}
-            <strong>{moeda(t.custas)}</strong>
+            Honorários iniciais <strong>{moeda(a.honorariosIniciais)}</strong> +
+            taxa judiciária <strong>{moeda(t.custas)}</strong>
             {t.extras > 0 && (
               <>
                 {" "}
@@ -333,7 +369,9 @@ export function AcoesJudiciais() {
         acao={
           <Botao
             variante="secundario"
-            onClick={() => atualizarAcao({ custosExtras: [...a.custosExtras, custoVazio()] })}
+            onClick={() =>
+              atualizarAcao({ custosExtras: [...a.custosExtras, custoVazio()] })
+            }
           >
             <Plus size={15} /> Despesa
           </Botao>
@@ -344,10 +382,15 @@ export function AcoesJudiciais() {
         ) : (
           <div className="space-y-2">
             {a.custosExtras.map((c) => (
-              <div key={c.id} className="grid grid-cols-[1fr_160px_40px] items-center gap-2">
+              <div
+                key={c.id}
+                className="grid grid-cols-[1fr_160px_40px] items-center gap-2"
+              >
                 <Texto
                   value={c.descricao}
-                  onChange={(e) => alterarCusto(c.id, { descricao: e.target.value })}
+                  onChange={(e) =>
+                    alterarCusto(c.id, { descricao: e.target.value })
+                  }
                   placeholder="Ex.: Defesa oral — sessão de julgamento (TJ/SP)"
                 />
                 <Numero
@@ -358,7 +401,9 @@ export function AcoesJudiciais() {
                 <Botao
                   variante="fantasma"
                   onClick={() =>
-                    atualizarAcao({ custosExtras: a.custosExtras.filter((x) => x.id !== c.id) })
+                    atualizarAcao({
+                      custosExtras: a.custosExtras.filter((x) => x.id !== c.id),
+                    })
                   }
                   aria-label="Remover despesa"
                 >
@@ -377,7 +422,10 @@ export function AcoesJudiciais() {
       >
         <div className="space-y-4">
           <Campo rotulo="Título">
-            <Texto value={a.titulo} onChange={(e) => atualizarAcao({ titulo: e.target.value })} />
+            <Texto
+              value={a.titulo}
+              onChange={(e) => atualizarAcao({ titulo: e.target.value })}
+            />
           </Campo>
 
           <AreaTexto

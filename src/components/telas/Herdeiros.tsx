@@ -4,6 +4,7 @@ import { Plus, Trash2, TriangleAlert, Users } from "lucide-react";
 
 import type { Herdeiro } from "@/lib/calculo/partilha";
 import { gerarHerdeiros, novoId } from "@/lib/orcamento/modelo";
+import { BotaoSalvar } from "../BotaoSalvar";
 import { useCustas } from "../Contexto";
 import { Pagina } from "../Pagina";
 import { Botao, Campo, Secao, Selecao, Texto, Numero, moeda, percentual } from "../ui";
@@ -40,11 +41,14 @@ export function Herdeiros() {
       titulo="Herdeiros e quinhões"
       descricao="Para cotar basta a quantidade. O detalhamento aqui serve na hora de fazer o inventário."
       acao={
-        <div className="text-right">
-          <p className="text-xs text-texto-suave">Monte partilhável</p>
-          <p className="text-xl font-semibold tabular-nums text-marinho">
-            {moeda(partilha.totalMonte)}
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-xs text-texto-suave">Monte partilhável</p>
+            <p className="text-xl font-semibold tabular-nums text-marinho">
+              {moeda(partilha.totalMonte)}
+            </p>
+          </div>
+          <BotaoSalvar />
         </div>
       }
     >

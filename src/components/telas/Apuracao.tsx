@@ -6,6 +6,7 @@ import type { Bem, LinhaCusto, ResultadoCalculo, Via } from "@/lib/calculo/tipos
 import { bemVazio } from "@/lib/orcamento/modelo";
 import { useCustas } from "../Contexto";
 import { BarraOrcamentos } from "../BarraOrcamentos";
+import { BotaoSalvar } from "../BotaoSalvar";
 import { Pagina } from "../Pagina";
 import { Botao, Campo, Interruptor, Numero, Secao, Selecao, Texto, moeda, percentual } from "../ui";
 import { SERVICOS } from "@/lib/dados/servicos";
@@ -37,18 +38,21 @@ export function Apuracao() {
 
   return (
     <Pagina
-      titulo="Apuração"
+      titulo="Ações Patrimoniais"
       descricao={`${servico.nome} · cotação ${o.numero}`}
       acao={
-        <div className="text-right">
-          <p className="text-xs text-texto-suave">Total apurado</p>
-          <p className="text-2xl font-semibold tabular-nums text-marinho">
-            {moeda(resultado.total)}
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-xs text-texto-suave">Total apurado</p>
+            <p className="text-2xl font-semibold tabular-nums text-marinho">
+              {moeda(resultado.total)}
+            </p>
+          </div>
+          <BotaoSalvar />
         </div>
       }
+      topo={!apresentacao ? <BarraOrcamentos /> : undefined}
     >
-      {!apresentacao && <BarraOrcamentos />}
 
       {/* ---------------- serviço e cliente ---------------- */}
       <Secao titulo="Serviço e cliente">
