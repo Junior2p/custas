@@ -68,14 +68,15 @@ export type Parametros = {
   certidaoPessoalHerdeiro: number;
   outrosCustosPercentual: number;
   /**
-   * Com mais de um bem, calcula o emolumento de cartório **de cada um**
-   * na sua própria faixa e soma — em vez de somar os valores e procurar
-   * uma faixa só. Como a tabela é regressiva, somar antes barateia
-   * indevidamente o cálculo.
+   * Custas do Tabelionato de **Notas** apuradas bem a bem, cada um na sua
+   * faixa. O padrão é `false`: a escritura é um ato só, então a faixa sai
+   * da soma dos bens.
    *
-   * Não vale para as custas judiciais, que incidem sobre o monte-mor.
+   * Não afeta o **registro no SRI**, que é sempre por imóvel — cada
+   * matrícula é um ato próprio, e os imóveis podem estar em comarcas
+   * diferentes. Nem as **custas judiciais**, que incidem sobre o monte-mor.
    */
-  custasPorBem: boolean;
+  notasPorBem: boolean;
 };
 
 /** Chaves numéricas de `Parametros` — as que a tela edita como número. */

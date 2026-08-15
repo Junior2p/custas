@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 export function Secao({
   titulo,
@@ -60,26 +60,80 @@ export function Selecao(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={`${baseInput} ${props.className ?? ""}`} />;
 }
 
-/** Entrada monetária/numérica que aceita vírgula decimal. */
+/**
+ * Separador de milhar no padrão brasileiro, preservando o que está sendo
+ * digitado depois da vírgula.
+ */
+function comMilhar(texto: string): string {
+  const [inteira, ...resto] = texto.split(",");
+  const digitos = inteira.replace(/\D/g, "");
+  const agrupada = digitos.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return resto.length ? `${agrupada},${resto.join("")}` : agrupada;
+}
+
+/** Deixa só dígitos e a primeira vírgula: "10.000,50" -> "10000,50". */
+function apenasNumero(texto: string): string {
+  const limpo = texto.replace(/[^\d,]/g, "");
+  const [inteira, ...resto] = limpo.split(",");
+  return resto.length ? `${inteira},${resto.join("").slice(0, 4)}` : inteira;
+}
+
+function formatar(valor: number, moeda: boolean): string {
+  if (!Number.isFinite(valor)) return "";
+  return valor.toLocaleString("pt-BR", {
+    minimumFractionDigits: moeda ? 2 : 0,
+    maximumFractionDigits: moeda ? 2 : 4,
+  });
+}
+
+/**
+ * Entrada numérica com separador de milhar. Enquanto o campo está em foco,
+ * o texto digitado manda; ao sair, volta a ser formatado a partir do valor —
+ * assim dá para apagar e redigitar sem a máscara atrapalhar.
+ */
 export function Numero({
   valor,
   aoMudar,
+  moeda: ehMoeda = false,
   alinharDireita = true,
   ...props
 }: {
   valor: number;
   aoMudar: (v: number) => void;
+  /** Força duas casas decimais na exibição. */
+  moeda?: boolean;
   alinharDireita?: boolean;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {
+  const [digitando, setDigitando] = useState<string | null>(null);
+  const [ultimoValor, setUltimoValor] = useState(valor);
+
+  // Se o valor mudar por fora (trocar de cotação, importar arquivo, "aplicar
+  // à cotação aberta"), o texto em digitação está velho e precisa sair do
+  // caminho — senão o campo mostraria o número da cotação anterior.
+  if (valor !== ultimoValor) {
+    setUltimoValor(valor);
+    const emDigitacao = digitando === null ? null : Number(apenasNumero(digitando).replace(",", "."));
+    if (emDigitacao !== valor) setDigitando(null);
+  }
+
   return (
     <input
       {...props}
       inputMode="decimal"
-      value={Number.isFinite(valor) ? String(valor).replace(".", ",") : ""}
+      value={digitando ?? formatar(valor, ehMoeda)}
       onChange={(e) => {
-        const limpo = e.target.value.replace(/\./g, "").replace(",", ".");
-        const n = Number(limpo);
+        const limpo = apenasNumero(e.target.value);
+        setDigitando(comMilhar(limpo));
+        const n = Number(limpo.replace(",", "."));
         aoMudar(Number.isFinite(n) ? n : 0);
+      }}
+      onFocus={(e) => {
+        setDigitando(comMilhar(apenasNumero(e.target.value)));
+        props.onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        setDigitando(null);
+        props.onBlur?.(e);
       }}
       className={`${baseInput} ${alinharDireita ? "text-right tabular-nums" : ""} ${props.className ?? ""}`}
     />

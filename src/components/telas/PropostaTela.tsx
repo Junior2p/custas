@@ -32,7 +32,7 @@ export function PropostaTela() {
             </div>
           </Campo>
           <Campo rotulo="Valor da proposta" dica="0 = usar o apurado">
-            <Numero valor={o.valorNegociado} aoMudar={(v) => atualizar({ valorNegociado: v })} />
+            <Numero moeda valor={o.valorNegociado} aoMudar={(v) => atualizar({ valorNegociado: v })} />
           </Campo>
           <Campo rotulo="Diferença">
             <div

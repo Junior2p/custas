@@ -253,7 +253,11 @@ test("cotação gravada por versão anterior é completada ao ser lida", () => {
   assert.ok(lida.validadeDias > 0);
   assert.equal(lida.formaPagamento, "");
   assert.equal(lida.bens[0].qtdCertidoes, 1, "campo novo do bem ganha o padrão");
-  assert.equal(lida.parametros.custasPorBem, true, "regra nova entra ligada nas antigas");
+  assert.equal(
+    lida.parametros.notasPorBem,
+    false,
+    "escritura é ato único: a faixa do Notas sai da soma, salvo escolha do usuário"
+  );
   assert.equal(lida.bens[0].registrar, true);
 
   // o que existia é preservado

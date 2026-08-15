@@ -417,12 +417,12 @@ const tresImoveis: Bem[] = [1, 2, 3].map((i) => ({
   qtdCertidoes: 1,
 }));
 
-function contextoTresImoveis(custasPorBem: boolean): ContextoCalculo {
+function contextoTresImoveis(notasPorBem: boolean): ContextoCalculo {
   return {
     bens: tresImoveis,
     qtdHerdeiros: 0,
     via: "extrajudicial",
-    parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3, custasPorBem },
+    parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3, notasPorBem },
     aplicarMulta: false,
     honorarios: { modo: "fixo", valor: 0 },
     tabelaNotas: TABELA_NOTAS_2025,
@@ -432,8 +432,16 @@ function contextoTresImoveis(custasPorBem: boolean): ContextoCalculo {
   };
 }
 
-test("o registro no SRI é sempre apurado imóvel a imóvel", () => {
+test("o registro no SRI é sempre imóvel a imóvel, ligado ou não o interruptor", () => {
   const r = calcularOrcamento(contextoTresImoveis(true));
+  const semInterruptor = calcularOrcamento(contextoTresImoveis(false));
+
+  // Cada matrícula é um ato próprio — os imóveis podem estar em comarcas
+  // diferentes. O interruptor vale só para as custas de Notas.
+  perto(
+    semInterruptor.linhas.find((l) => l.chave === "registro_sri")!.valor,
+    r.linhas.find((l) => l.chave === "registro_sri")!.valor
+  );
 
   // 3 × emolumento de R$ 100.000 — NÃO o emolumento de R$ 300.000.
   const porBem = emolumento(TABELA_SRI_2025, 100000);
@@ -462,8 +470,8 @@ test("as custas de cartório somam o emolumento de cada bem", () => {
 
 test("com um bem só, as duas formas dão o mesmo resultado", () => {
   const umBem = [tresImoveis[0]];
-  const contexto = (custasPorBem: boolean) => ({
-    ...contextoTresImoveis(custasPorBem),
+  const contexto = (notasPorBem: boolean) => ({
+    ...contextoTresImoveis(notasPorBem),
     bens: umBem,
   });
 

@@ -13,7 +13,7 @@ export const PARAMETROS_PADRAO: Parametros = {
   certidaoTestamento: 70,
   certidaoPessoalHerdeiro: 100,
   outrosCustosPercentual: 10,
-  custasPorBem: true,
+  notasPorBem: false,
 };
 
 /** Rótulos e formato de cada parâmetro, para a tela de parametrização. */

@@ -155,14 +155,18 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
   };
 }
 
-/** Emolumento do Tabelionato: por bem (padrão) ou sobre o total somado. */
+/**
+ * Emolumento do Tabelionato de Notas. Por padrão a faixa sai da soma dos
+ * bens — a escritura é um ato único. `notasPorBem` calcula cada bem na sua
+ * própria faixa, para os casos em que os atos são separados.
+ */
 function custasCartorio(
   ctx: ContextoCalculo,
   totalTransmitido: number
 ): { valor: number; memoria: string } {
   const comValor = ctx.bens.filter((b) => valorTransmitidoDoBem(b) > 0);
 
-  if (!ctx.parametros.custasPorBem || comValor.length <= 1) {
+  if (!ctx.parametros.notasPorBem || comValor.length <= 1) {
     return {
       valor: emolumento(ctx.tabelaNotas, totalTransmitido),
       memoria: `tabela de Notas — faixa de ${formatarMoeda(totalTransmitido)}`,

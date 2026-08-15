@@ -110,11 +110,11 @@ export function Apuracao() {
         {o.bens.filter((b) => b.valorVenal > 0).length > 1 && (
           <div className="mt-4 border-t border-borda pt-4">
             <Interruptor
-              rotulo="Calcular emolumentos por bem"
-              dica="Cada bem entra na sua própria faixa e os valores são somados, em vez de somar tudo e procurar uma faixa só."
-              ativo={o.parametros.custasPorBem}
+              rotulo="Custas de cartório bem a bem"
+              dica="Por padrão a escritura é um ato só: a faixa sai da soma dos bens. Ligue quando os atos forem separados. O registro no SRI é sempre por imóvel, independente disto."
+              ativo={o.parametros.notasPorBem}
               aoMudar={(v) =>
-                atualizar({ parametros: { ...o.parametros, custasPorBem: v } })
+                atualizar({ parametros: { ...o.parametros, notasPorBem: v } })
               }
             />
           </div>
@@ -173,6 +173,7 @@ export function Apuracao() {
                   </td>
                   <td className="w-36 py-2 pr-2">
                     <Numero
+                      moeda
                       valor={bem.valorVenal}
                       aoMudar={(v) => alterarBem(bem.id, { valorVenal: v })}
                     />
@@ -249,6 +250,7 @@ export function Apuracao() {
             {o.honorariosModo === "fixo" && (
               <Campo rotulo="Valor">
                 <Numero
+                  moeda
                   valor={o.honorariosValor}
                   aoMudar={(v) => atualizar({ honorariosValor: v })}
                 />
@@ -419,6 +421,7 @@ function LinhaEditavel({
       <td className="w-40 py-1.5">
         <div className="flex items-center gap-1">
           <Numero
+            moeda
             valor={linha.valor}
             aoMudar={(v) => aoAjustar(linha.chave, { valor: v })}
             className={`py-1 text-sm ${ajustada ? "border-dourado bg-dourado-50" : "border-transparent bg-transparent hover:border-borda hover:bg-white"}`}

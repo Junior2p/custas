@@ -67,22 +67,20 @@ esconde a **Parametrização**, as **Tabelas**, a gestão de cotações, a confi
 **honorários** e as memórias de cálculo. A composição dos custos **continua visível e
 editável** — o que muda é que ela deixa de revelar como cada número foi obtido.
 
-## Vários bens: cada um na sua faixa
+## Vários bens: qual base entra em cada faixa
 
-As tabelas de emolumentos são **regressivas** — quanto maior o valor, menor o custo
-proporcional. Por isso somar os bens antes de procurar a faixa subestima o total.
-
-O sistema calcula o emolumento **de cada bem na sua própria faixa** e soma. Em 4 imóveis
-de R$ 50.000, a diferença é de R$ 4.301,60 só nas custas de cartório.
-
-| | Somando antes | Bem a bem |
+| Cobrança | Base da faixa | Por quê |
 |---|---|---|
-| 3 imóveis de R$ 100.000 (Notas) | R$ 4.247,39 | **R$ 6.909,24** |
-| 4 imóveis de R$ 50.000 (Notas) | R$ 3.458,80 | **R$ 7.760,40** |
+| **Registro no SRI** | sempre **imóvel a imóvel** | cada matrícula é um ato próprio, e os imóveis podem estar em comarcas diferentes |
+| **Custas de Notas** | **soma dos bens** (padrão) | a escritura é um ato único |
+| **Custas judiciais** | monte-mor / valor da ação | é a regra do foro |
 
-O parâmetro `custasPorBem` controla isso (ligado por padrão) e há um interruptor na
-apuração sempre que houver mais de um bem. As **custas judiciais** não são afetadas:
-incidem sobre o monte-mor, como manda a regra.
+O parâmetro `notasPorBem` (desligado por padrão) permite apurar as custas de Notas bem a
+bem, para quando os atos forem separados. Há um interruptor na apuração sempre que
+houver mais de um bem. Ele **não afeta** o registro no SRI nem as custas judiciais.
+
+Como as tabelas são regressivas, a escolha pesa: 4 imóveis de R$ 50.000 dão R$ 3.458,80
+somados contra R$ 7.760,40 bem a bem.
 
 ## Motor de cálculo
 

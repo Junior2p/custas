@@ -110,6 +110,7 @@ export function Tabelas() {
                   }
                 />
                 <Numero
+                  moeda
                   valor={acao.valorMinimo}
                   aoMudar={(v) =>
                     atualizarParametrizacao({
@@ -261,6 +262,7 @@ function TabelaEmolumentos({
                 <td className="px-3 py-1.5 text-xs text-texto-suave">{faixa.ordem}</td>
                 <td className="px-3 py-1.5">
                   <Numero
+                    moeda
                     valor={faixa.valorDe}
                     aoMudar={(v) =>
                       aoMudar(faixas.map((f, j) => (j === i ? { ...f, valorDe: v } : f)))
@@ -270,6 +272,7 @@ function TabelaEmolumentos({
                 </td>
                 <td className="px-3 py-1.5">
                   <Numero
+                    moeda
                     valor={faixa.valorAte ?? 0}
                     placeholder="acima de"
                     aoMudar={(v) =>
@@ -282,6 +285,7 @@ function TabelaEmolumentos({
                 </td>
                 <td className="px-3 py-1.5">
                   <Numero
+                    moeda
                     valor={faixa.valorTotal}
                     aoMudar={(v) =>
                       aoMudar(faixas.map((f, j) => (j === i ? { ...f, valorTotal: v } : f)))

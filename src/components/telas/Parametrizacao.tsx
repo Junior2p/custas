@@ -75,6 +75,7 @@ export function Parametrizacao() {
               dica={campo.dica}
             >
               <Numero
+                moeda={campo.formato === "moeda"}
                 valor={p.parametros[campo.chave]}
                 aoMudar={(v) =>
                   atualizarParametrizacao({
@@ -89,13 +90,13 @@ export function Parametrizacao() {
 
         <div className="mt-5 border-t border-borda pt-4">
           <Interruptor
-            rotulo="Calcular emolumentos por bem"
-            dica="Com mais de um bem, cada um entra na sua própria faixa e os valores são somados. Desligado, soma os valores primeiro e procura uma faixa só — o que barateia o cálculo, porque a tabela é regressiva. Não afeta as custas judiciais, que incidem sobre o monte-mor."
-            ativo={p.parametros.custasPorBem}
+            rotulo="Custas de cartório (Notas) bem a bem"
+            dica="Desligado (padrão): a escritura é um ato único e a faixa sai da soma dos bens. Ligado: cada bem entra na sua própria faixa. Não afeta o registro no SRI — esse é sempre por imóvel, já que cada matrícula é um ato e os imóveis podem estar em comarcas diferentes — nem as custas judiciais, que incidem sobre o monte-mor."
+            ativo={p.parametros.notasPorBem}
             aoMudar={(v) =>
               atualizarParametrizacao({
                 ...p,
-                parametros: { ...p.parametros, custasPorBem: v },
+                parametros: { ...p.parametros, notasPorBem: v },
               })
             }
           />
@@ -129,6 +130,7 @@ export function Parametrizacao() {
           </Campo>
           <Campo rotulo="Valor fixo padrão">
             <Numero
+              moeda
               valor={p.honorariosPadrao.valor}
               aoMudar={(v) =>
                 atualizarParametrizacao({
@@ -176,6 +178,7 @@ export function Parametrizacao() {
             >
               <span>de</span>
               <Numero
+                moeda
                 valor={faixa.valorDe}
                 aoMudar={(v) =>
                   atualizarParametrizacao({
@@ -188,6 +191,7 @@ export function Parametrizacao() {
               />
               <span>até</span>
               <Numero
+                moeda
                 valor={faixa.valorAte ?? 0}
                 placeholder="sem limite"
                 aoMudar={(v) =>
