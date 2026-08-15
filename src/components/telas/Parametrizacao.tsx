@@ -7,7 +7,7 @@ import { CAMPOS_PARAMETROS } from "@/lib/dados/padroes";
 import { PARAMETRIZACAO_PADRAO } from "@/lib/parametrizacao/modelo";
 import { useCustas } from "../Contexto";
 import { Pagina } from "../Pagina";
-import { Botao, Campo, Numero, Secao, Selecao, Texto, moeda } from "../ui";
+import { Botao, Campo, Interruptor, Numero, Secao, Selecao, Texto, moeda } from "../ui";
 import { SecaoAcesso } from "./SecaoAcesso";
 
 export function Parametrizacao() {
@@ -85,6 +85,20 @@ export function Parametrizacao() {
               />
             </Campo>
           ))}
+        </div>
+
+        <div className="mt-5 border-t border-borda pt-4">
+          <Interruptor
+            rotulo="Calcular emolumentos por bem"
+            dica="Com mais de um bem, cada um entra na sua própria faixa e os valores são somados. Desligado, soma os valores primeiro e procura uma faixa só — o que barateia o cálculo, porque a tabela é regressiva. Não afeta as custas judiciais, que incidem sobre o monte-mor."
+            ativo={p.parametros.custasPorBem}
+            aoMudar={(v) =>
+              atualizarParametrizacao({
+                ...p,
+                parametros: { ...p.parametros, custasPorBem: v },
+              })
+            }
+          />
         </div>
       </Secao>
 

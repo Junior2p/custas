@@ -403,3 +403,88 @@ test("honorários embutidos entram no total mesmo declarados por último", () =>
   perto(honorarios, somaOutras * 0.1);
   perto(r.total, somaOutras + honorarios);
 });
+
+// ------------------------------------------------------------
+// Vários bens: cada um na sua faixa
+// ------------------------------------------------------------
+
+const tresImoveis: Bem[] = [1, 2, 3].map((i) => ({
+  descricao: `Imóvel ${i}`,
+  tipo: "imovel" as const,
+  valorVenal: 100000,
+  percentual: 1,
+  registrar: true,
+  qtdCertidoes: 1,
+}));
+
+function contextoTresImoveis(custasPorBem: boolean): ContextoCalculo {
+  return {
+    bens: tresImoveis,
+    qtdHerdeiros: 0,
+    via: "extrajudicial",
+    parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3, custasPorBem },
+    aplicarMulta: false,
+    honorarios: { modo: "fixo", valor: 0 },
+    tabelaNotas: TABELA_NOTAS_2025,
+    tabelaSri: TABELA_SRI_2025,
+    faixasCustasJudiciais: FAIXAS_CUSTAS_JUDICIAIS,
+    catalogo: ESCRITURA.catalogo,
+  };
+}
+
+test("o registro no SRI é sempre apurado imóvel a imóvel", () => {
+  const r = calcularOrcamento(contextoTresImoveis(true));
+
+  // 3 × emolumento de R$ 100.000 — NÃO o emolumento de R$ 300.000.
+  const porBem = emolumento(TABELA_SRI_2025, 100000);
+  perto(r.linhas.find((l) => l.chave === "registro_sri")!.valor, porBem * 3);
+
+  const somandoAntes = emolumento(TABELA_SRI_2025, 300000);
+  assert.ok(
+    porBem * 3 > somandoAntes,
+    "a tabela é regressiva: somar antes teria saído mais barato"
+  );
+});
+
+test("as custas de cartório somam o emolumento de cada bem", () => {
+  const porBem = calcularOrcamento(contextoTresImoveis(true));
+  const somado = calcularOrcamento(contextoTresImoveis(false));
+
+  perto(porBem.linhas.find((l) => l.chave === "custas")!.valor, emolumento(TABELA_NOTAS_2025, 100000) * 3);
+  perto(somado.linhas.find((l) => l.chave === "custas")!.valor, emolumento(TABELA_NOTAS_2025, 300000));
+
+  // 3 × R$ 2.303,08 = R$ 6.909,24 contra R$ 4.247,39 de uma faixa só
+  assert.ok(
+    porBem.total > somado.total,
+    "apurar por bem não pode sair mais barato que somar antes"
+  );
+});
+
+test("com um bem só, as duas formas dão o mesmo resultado", () => {
+  const umBem = [tresImoveis[0]];
+  const contexto = (custasPorBem: boolean) => ({
+    ...contextoTresImoveis(custasPorBem),
+    bens: umBem,
+  });
+
+  perto(calcularOrcamento(contexto(true)).total, calcularOrcamento(contexto(false)).total);
+});
+
+test("a memória de cálculo mostra as parcelas de cada bem", () => {
+  const r = calcularOrcamento(contextoTresImoveis(true));
+
+  assert.match(r.linhas.find((l) => l.chave === "custas")!.memoria, /\+/);
+  assert.match(r.linhas.find((l) => l.chave === "registro_sri")!.memoria, /\+/);
+});
+
+test("as custas judiciais continuam incidindo sobre o monte-mor", () => {
+  // 3 imóveis de 100 mil: a faixa é a do total (300 mil), não a de cada um.
+  const r = calcularOrcamento({
+    ...contextoTresImoveis(true),
+    via: "judicial",
+    catalogo: INVENTARIO.catalogo,
+    qtdHerdeiros: 2,
+  });
+
+  perto(r.linhas.find((l) => l.chave === "custas")!.valor, 100 * PARAMETROS_PADRAO.ufesp);
+});

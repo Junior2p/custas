@@ -3,7 +3,7 @@
 // Reproduzem as constantes encontradas na planilha (seção 7 da análise).
 // Depois de carregados, passam a ser editados pela tela de Parametrização.
 // ============================================================
-import type { FaixaCustasJudiciais, Parametros } from "@/lib/calculo/tipos";
+import type { FaixaCustasJudiciais, Parametros, ParametroNumerico } from "@/lib/calculo/tipos";
 
 export const PARAMETROS_PADRAO: Parametros = {
   impostoAliquota: 4, // ITCMD/SP — cada tipo de serviço define a sua
@@ -13,11 +13,12 @@ export const PARAMETROS_PADRAO: Parametros = {
   certidaoTestamento: 70,
   certidaoPessoalHerdeiro: 100,
   outrosCustosPercentual: 10,
+  custasPorBem: true,
 };
 
 /** Rótulos e formato de cada parâmetro, para a tela de parametrização. */
 export const CAMPOS_PARAMETROS: {
-  chave: keyof Parametros;
+  chave: ParametroNumerico;
   rotulo: string;
   formato: "moeda" | "percentual";
   dica?: string;

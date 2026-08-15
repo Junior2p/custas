@@ -107,6 +107,19 @@ export function Apuracao() {
           )}
         </div>
 
+        {o.bens.filter((b) => b.valorVenal > 0).length > 1 && (
+          <div className="mt-4 border-t border-borda pt-4">
+            <Interruptor
+              rotulo="Calcular emolumentos por bem"
+              dica="Cada bem entra na sua própria faixa e os valores são somados, em vez de somar tudo e procurar uma faixa só."
+              ativo={o.parametros.custasPorBem}
+              aoMudar={(v) =>
+                atualizar({ parametros: { ...o.parametros, custasPorBem: v } })
+              }
+            />
+          </div>
+        )}
+
         {servico.observacao && !apresentacao && (
           <p className="mt-4 rounded-lg bg-marinho-50 px-3 py-2 text-xs text-marinho">
             {servico.observacao}

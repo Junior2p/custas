@@ -67,6 +67,23 @@ esconde a **Parametrização**, as **Tabelas**, a gestão de cotações, a confi
 **honorários** e as memórias de cálculo. A composição dos custos **continua visível e
 editável** — o que muda é que ela deixa de revelar como cada número foi obtido.
 
+## Vários bens: cada um na sua faixa
+
+As tabelas de emolumentos são **regressivas** — quanto maior o valor, menor o custo
+proporcional. Por isso somar os bens antes de procurar a faixa subestima o total.
+
+O sistema calcula o emolumento **de cada bem na sua própria faixa** e soma. Em 4 imóveis
+de R$ 50.000, a diferença é de R$ 4.301,60 só nas custas de cartório.
+
+| | Somando antes | Bem a bem |
+|---|---|---|
+| 3 imóveis de R$ 100.000 (Notas) | R$ 4.247,39 | **R$ 6.909,24** |
+| 4 imóveis de R$ 50.000 (Notas) | R$ 3.458,80 | **R$ 7.760,40** |
+
+O parâmetro `custasPorBem` controla isso (ligado por padrão) e há um interruptor na
+apuração sempre que houver mais de um bem. As **custas judiciais** não são afetadas:
+incidem sobre o monte-mor, como manda a regra.
+
 ## Motor de cálculo
 
 Isolado de propósito: recebe um contexto (bens, herdeiros, tabelas, parâmetros) e

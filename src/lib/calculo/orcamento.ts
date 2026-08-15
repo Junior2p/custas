@@ -34,21 +34,20 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
   const imposto = arredondar(totalTransmitido * (p.impostoAliquota / 100));
   const multa = ctx.aplicarMulta ? arredondar(imposto * (p.multaPercentual / 100)) : 0;
 
-  // Registro no SRI: emolumento por imóvel marcado para registro.
-  // A certidão posterior ao registro é uma linha própria do catálogo.
+  // Registro no SRI: cada imóvel entra na sua própria faixa. A tabela é
+  // regressiva, então somar os valores antes de procurar a faixa barateia
+  // o cálculo indevidamente.
+  const imoveisRegistro = ctx.bens.filter((b) => b.tipo === "imovel" && b.registrar);
   const registro = arredondar(
-    ctx.bens
-      .filter((b) => b.tipo === "imovel" && b.registrar)
-      .reduce((s, b) => s + emolumento(ctx.tabelaSri, valorTransmitidoDoBem(b)), 0)
+    imoveisRegistro.reduce((s, b) => s + emolumento(ctx.tabelaSri, valorTransmitidoDoBem(b)), 0)
   );
 
   const custas =
     ctx.via === "judicial"
-      ? custasJudiciais(ctx.faixasCustasJudiciais, totalTransmitido, p.ufesp)
-      : {
-          valor: emolumento(ctx.tabelaNotas, totalTransmitido),
-          memoria: `tabela de Notas — faixa de ${formatarMoeda(totalTransmitido)}`,
-        };
+      ? // Custas judiciais incidem sobre o monte-mor / valor da ação: aqui o
+        // total é a base correta.
+        custasJudiciais(ctx.faixasCustasJudiciais, totalTransmitido, p.ufesp)
+      : custasCartorio(ctx, totalTransmitido);
 
   const bases = {
     totalVenal,
@@ -156,6 +155,32 @@ export function calcularOrcamento(ctx: ContextoCalculo): ResultadoCalculo {
   };
 }
 
+/** Emolumento do Tabelionato: por bem (padrão) ou sobre o total somado. */
+function custasCartorio(
+  ctx: ContextoCalculo,
+  totalTransmitido: number
+): { valor: number; memoria: string } {
+  const comValor = ctx.bens.filter((b) => valorTransmitidoDoBem(b) > 0);
+
+  if (!ctx.parametros.custasPorBem || comValor.length <= 1) {
+    return {
+      valor: emolumento(ctx.tabelaNotas, totalTransmitido),
+      memoria: `tabela de Notas — faixa de ${formatarMoeda(totalTransmitido)}`,
+    };
+  }
+
+  const parcelas = comValor.map((b) => emolumento(ctx.tabelaNotas, valorTransmitidoDoBem(b)));
+  const detalhe =
+    parcelas.length <= 4
+      ? parcelas.map(formatarMoeda).join(" + ")
+      : `${parcelas.length} bens, cada um na sua faixa`;
+
+  return {
+    valor: arredondar(parcelas.reduce((s, v) => s + v, 0)),
+    memoria: `tabela de Notas — ${detalhe}`,
+  };
+}
+
 type Derivados = {
   custas: { valor: number; memoria: string };
   subtotal: number;
@@ -218,11 +243,20 @@ function resolverItem(
       };
 
     case "tabela_sri": {
-      const detalhe = ctx.bens.filter((b) => b.tipo === "imovel" && b.registrar).length;
-      return {
-        valor: bases.registro,
-        memoria: `tabela do SRI — ${detalhe} imóvel(is) a registrar`,
-      };
+      const imoveis = ctx.bens.filter((b) => b.tipo === "imovel" && b.registrar);
+      const parcelas = imoveis.map((b) =>
+        emolumento(ctx.tabelaSri, valorTransmitidoDoBem(b))
+      );
+      const detalhe =
+        parcelas.length === 0
+          ? "nenhum imóvel a registrar"
+          : parcelas.length === 1
+            ? `1 imóvel — faixa de ${formatarMoeda(valorTransmitidoDoBem(imoveis[0]))}`
+            : parcelas.length <= 4
+              ? parcelas.map(formatarMoeda).join(" + ")
+              : `${parcelas.length} imóveis, cada um na sua faixa`;
+
+      return { valor: bases.registro, memoria: `tabela do SRI — ${detalhe}` };
     }
 
     default:

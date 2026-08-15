@@ -67,7 +67,21 @@ export type Parametros = {
   certidaoTestamento: number;
   certidaoPessoalHerdeiro: number;
   outrosCustosPercentual: number;
+  /**
+   * Com mais de um bem, calcula o emolumento de cartório **de cada um**
+   * na sua própria faixa e soma — em vez de somar os valores e procurar
+   * uma faixa só. Como a tabela é regressiva, somar antes barateia
+   * indevidamente o cálculo.
+   *
+   * Não vale para as custas judiciais, que incidem sobre o monte-mor.
+   */
+  custasPorBem: boolean;
 };
+
+/** Chaves numéricas de `Parametros` — as que a tela edita como número. */
+export type ParametroNumerico = {
+  [K in keyof Parametros]: Parametros[K] extends number ? K : never;
+}[keyof Parametros];
 
 export type BaseCalculo =
   | "total_venal"
@@ -113,7 +127,7 @@ export type ItemCatalogo = {
    * Quando preenchido, o valor (ou percentual) do item vem deste parâmetro geral,
    * em vez de ficar duplicado no catálogo.
    */
-  parametro?: keyof Parametros;
+  parametro?: ParametroNumerico;
   /**
    * Marca a linha como parte do custo de registro. Essas linhas compõem a base
    * "custas + registro" e são as que saem do "total sem registro".
