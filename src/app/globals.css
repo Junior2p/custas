@@ -50,22 +50,57 @@ input[type="number"] {
   appearance: textfield;
 }
 
-/* ---------- Impressão: sai só a proposta ---------- */
+/* ---------- Impressão: sai só o documento ----------
+   A regra é por exclusão: tudo fica invisível e só a área de impressão
+   volta a aparecer. Antes dependia de marcar cada container com
+   `.sem-impressao`, e bastava uma tela nova esquecer a classe para a
+   interface inteira ir parar no papel. */
 @media print {
   @page {
     size: A4;
-    margin: 18mm 16mm;
+    margin: 16mm 15mm;
   }
+
+  html,
   body {
     background: #fff;
+    height: auto;
   }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .area-impressao,
+  .area-impressao * {
+    visibility: visible !important;
+  }
+
+  /* Tira o documento do fluxo para não herdar as margens da tela. */
+  .area-impressao {
+    display: block !important;
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
   .sem-impressao {
     display: none !important;
   }
-  .area-impressao {
-    display: block !important;
-    box-shadow: none !important;
-    border: none !important;
-    padding: 0 !important;
+
+  /* Não corta tabelas e blocos no meio de uma quebra de página. */
+  table,
+  ul,
+  img {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
   }
 }
