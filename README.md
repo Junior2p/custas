@@ -38,6 +38,13 @@ O menu tem os **tipos de ação**; as etapas de cada um ficam dentro da própria
 | **Ações Patrimoniais** | 1 Apuração · 2 Herdeiros e quinhões · 3 Proposta |
 | **Ações Judiciais** | Dados do processo → documento (extrato ou proposta de ingresso) |
 
+No inventário, marque **Tem meeiro(a)** quando houver: ele conta nas certidões pessoais
+(uma pessoa a mais), mas fica **fora da divisão dos quinhões** — a meação é direito
+próprio, não herança. O "valor por herdeiro" também ignora o meeiro.
+
+As alíquotas padrão (**ITCMD 4%** e **ITBI 3%**) ficam em Parametrização → Custos de
+base, e cada cotação pode sobrescrever a sua.
+
 **Ações Patrimoniais** cobre o que se mede por bens: inventário, escritura, usucapião,
 divórcio e alvará. **Ações Judiciais** cobre as ações comuns, em dois documentos —
 *extrato de honorários* (processo em curso, ato a ato pela Tabela OAB/SP) e *proposta de

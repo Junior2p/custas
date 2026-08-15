@@ -6,7 +6,9 @@
 import type { FaixaCustasJudiciais, Parametros, ParametroNumerico } from "@/lib/calculo/tipos";
 
 export const PARAMETROS_PADRAO: Parametros = {
-  impostoAliquota: 4, // ITCMD/SP — cada tipo de serviço define a sua
+  impostoAliquota: 4,
+  aliquotaItcmd: 4, // ITCMD/SP
+  aliquotaItbi: 3,
   multaPercentual: 30,
   ufesp: 34.26, // vigência 2025 — conferir a cada ano
   certidaoImovel: 100,
@@ -23,6 +25,8 @@ export const CAMPOS_PARAMETROS: {
   formato: "moeda" | "percentual";
   dica?: string;
 }[] = [
+  { chave: "aliquotaItcmd", rotulo: "Alíquota do ITCMD", formato: "percentual", dica: "Causa mortis e doação (SP)" },
+  { chave: "aliquotaItbi", rotulo: "Alíquota do ITBI", formato: "percentual", dica: "Transmissão inter vivos" },
   { chave: "multaPercentual", rotulo: "Multa sobre o imposto", formato: "percentual", dica: "Recolhimento em atraso" },
   { chave: "ufesp", rotulo: "UFESP", formato: "moeda", dica: "Base das custas judiciais" },
   { chave: "certidaoImovel", rotulo: "Certidão de imóvel", formato: "moeda", dica: "Cobrada duas vezes: prévia e após o registro" },

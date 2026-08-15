@@ -79,6 +79,7 @@ function contextoInventario(via: "judicial" | "extrajudicial"): ContextoCalculo 
   return {
     bens: [bemImovel20k],
     qtdHerdeiros: 2,
+    temMeeiro: false,
     via,
     parametros: PARAMETROS_PADRAO,
     aplicarMulta: true, // a planilha estava com o flag "MULTA" ligado
@@ -155,6 +156,7 @@ test("escritura reproduz o total da planilha (R$ 21.894,49)", () => {
       },
     ],
     qtdHerdeiros: 0,
+    temMeeiro: false,
     via: "extrajudicial",
     parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3 }, // ITBI
     aplicarMulta: false,
@@ -189,6 +191,7 @@ test("multa do ITBI passa a entrar quando ligada (corrige o problema #4)", () =>
       },
     ],
     qtdHerdeiros: 0,
+    temMeeiro: false,
     via: "extrajudicial" as const,
     parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3 },
     honorarios: { modo: "fixo" as const, valor: 0 },
@@ -296,6 +299,7 @@ test("todo serviço apura um total em cada uma das suas vias", () => {
       const r = calcularOrcamento({
         bens,
         qtdHerdeiros: 3,
+        temMeeiro: false,
         via,
         parametros: { ...PARAMETROS_PADRAO, impostoAliquota: servico.impostoAliquota },
         aplicarMulta: false,
@@ -341,6 +345,7 @@ test("honorários embutidos incidem sobre os demais custos, não sobre o bem", (
       },
     ],
     qtdHerdeiros: 0,
+    temMeeiro: false,
     via: "extrajudicial" as const,
     parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3 },
     aplicarMulta: false,
@@ -386,6 +391,7 @@ test("honorários embutidos entram no total mesmo declarados por último", () =>
       },
     ],
     qtdHerdeiros: 0,
+    temMeeiro: false,
     via: "extrajudicial",
     parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3 },
     aplicarMulta: false,
@@ -421,6 +427,7 @@ function contextoTresImoveis(notasPorBem: boolean): ContextoCalculo {
   return {
     bens: tresImoveis,
     qtdHerdeiros: 0,
+    temMeeiro: false,
     via: "extrajudicial",
     parametros: { ...PARAMETROS_PADRAO, impostoAliquota: 3, notasPorBem },
     aplicarMulta: false,
@@ -492,7 +499,94 @@ test("as custas judiciais continuam incidindo sobre o monte-mor", () => {
     via: "judicial",
     catalogo: INVENTARIO.catalogo,
     qtdHerdeiros: 2,
+    temMeeiro: false,
   });
 
   perto(r.linhas.find((l) => l.chave === "custas")!.valor, 100 * PARAMETROS_PADRAO.ufesp);
+});
+
+// ------------------------------------------------------------
+// Meeiro(a): conta nas certidões, não conta nos quinhões
+// ------------------------------------------------------------
+
+function contextoInventarioComMeeiro(temMeeiro: boolean): ContextoCalculo {
+  return {
+    bens: [bemImovel20k],
+    qtdHerdeiros: 3,
+    temMeeiro,
+    via: "extrajudicial",
+    parametros: PARAMETROS_PADRAO,
+    aplicarMulta: false,
+    honorarios: { modo: "fixo", valor: 0 },
+    tabelaNotas: TABELA_NOTAS_2025,
+    tabelaSri: TABELA_SRI_2025,
+    faixasCustasJudiciais: FAIXAS_CUSTAS_JUDICIAIS,
+    catalogo: INVENTARIO.catalogo,
+  };
+}
+
+test("com meeiro(a), as certidões pessoais contam uma pessoa a mais", () => {
+  const sem = calcularOrcamento(contextoInventarioComMeeiro(false));
+  const com = calcularOrcamento(contextoInventarioComMeeiro(true));
+
+  const certidoes = (r: typeof sem) =>
+    r.linhas.find((l) => l.chave === "certidoes_pessoais")!.valor;
+
+  perto(certidoes(sem), 3 * PARAMETROS_PADRAO.certidaoPessoalHerdeiro);
+  perto(certidoes(com), 4 * PARAMETROS_PADRAO.certidaoPessoalHerdeiro);
+  perto(com.total - sem.total, PARAMETROS_PADRAO.certidaoPessoalHerdeiro);
+});
+
+test("o meeiro(a) não entra na divisão do valor por herdeiro", () => {
+  const com = calcularOrcamento(contextoInventarioComMeeiro(true));
+
+  // Divide por 3 herdeiros, não por 4 pessoas.
+  perto(com.totalPorHerdeiro, com.total / 3);
+});
+
+test("o meeiro(a) recebe meação, mas nenhum quinhão", () => {
+  const bens: Bem[] = [
+    {
+      descricao: "Casa",
+      tipo: "imovel",
+      valorVenal: 300000,
+      percentual: 0.5,
+      registrar: true,
+      qtdCertidoes: 1,
+    },
+  ];
+
+  const r = calcularPartilha(bens, [
+    { id: "m", nome: "Viúva", tipo: "meeiro", percentual: 0.5 },
+    { id: "h1", nome: "Filho 1", tipo: "herdeiro", percentual: 0.5 },
+    { id: "h2", nome: "Filho 2", tipo: "herdeiro", percentual: 0.5 },
+  ]);
+
+  const meeira = r.porHerdeiro.find((p) => p.tipo === "meeiro")!;
+  perto(meeira.valor, 150000); // meação: metade do bem
+  assert.equal(r.inconsistencias.length, 0, "os quinhões dos herdeiros fecham em 100%");
+
+  // O monte partilhável (150.000) vai só para os dois herdeiros.
+  const herdeiros = r.porHerdeiro.filter((p) => p.tipo === "herdeiro");
+  perto(herdeiros.reduce((s, h) => s + h.valor, 0), 150000);
+  herdeiros.forEach((h) => perto(h.valor, 75000));
+});
+
+test("as alíquotas padrão vêm da parametrização: ITCMD 4% e ITBI 3%", () => {
+  assert.equal(PARAMETROS_PADRAO.aliquotaItcmd, 4);
+  assert.equal(PARAMETROS_PADRAO.aliquotaItbi, 3);
+
+  for (const servico of SERVICOS) {
+    const esperado =
+      servico.imposto === "itcmd"
+        ? PARAMETROS_PADRAO.aliquotaItcmd
+        : servico.imposto === "itbi"
+          ? PARAMETROS_PADRAO.aliquotaItbi
+          : 0;
+    assert.equal(
+      servico.impostoAliquota,
+      esperado,
+      `${servico.nome}: alíquota do serviço destoa do padrão`
+    );
+  }
 });

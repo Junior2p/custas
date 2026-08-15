@@ -4,7 +4,7 @@ import { Plus, RotateCcw, Trash2 } from "lucide-react";
 
 import type { Bem, LinhaCusto, ResultadoCalculo, Via } from "@/lib/calculo/tipos";
 import { bemVazio } from "@/lib/orcamento/modelo";
-import { useCustas } from "../Contexto";
+import { aliquotaPadraoDoServico, useCustas } from "../Contexto";
 import { BarraOrcamentos } from "../BarraOrcamentos";
 import { BotaoSalvar } from "../BotaoSalvar";
 import { EtapasPatrimoniais } from "../Etapas";
@@ -86,22 +86,35 @@ export function Apuracao() {
 
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           {servico.temHerdeiros && (
-            <Campo
-              rotulo="Quantidade de herdeiros"
-              dica="Define as certidões pessoais e o valor por herdeiro."
-            >
-              <Numero
-                valor={o.qtdHerdeiros}
-                aoMudar={(v) => atualizar({ qtdHerdeiros: Math.max(0, Math.round(v)) })}
-              />
-            </Campo>
+            <>
+              <Campo
+                rotulo="Quantidade de herdeiros"
+                dica="Define as certidões pessoais e o valor por herdeiro."
+              >
+                <Numero
+                  valor={o.qtdHerdeiros}
+                  aoMudar={(v) => atualizar({ qtdHerdeiros: Math.max(0, Math.round(v)) })}
+                />
+              </Campo>
+              <div className="flex items-end pb-2">
+                <Interruptor
+                  rotulo="Tem meeiro(a)"
+                  dica="Entra nas certidões pessoais, mas fica fora da divisão dos quinhões."
+                  ativo={o.temMeeiro}
+                  aoMudar={(v) => atualizar({ temMeeiro: v })}
+                />
+              </div>
+            </>
           )}
 
           {servico.nomeImposto && (
             <>
-              <Campo rotulo={`Alíquota do ${servico.nomeImposto} (%)`}>
+              <Campo
+                rotulo={`Alíquota do ${servico.nomeImposto} (%)`}
+                dica={`Padrão da parametrização: ${aliquotaPadraoDoServico(servico, o.parametros)}%`}
+              >
                 <Numero
-                  valor={o.aliquotaImposto ?? servico.impostoAliquota}
+                  valor={o.aliquotaImposto ?? aliquotaPadraoDoServico(servico, o.parametros)}
                   aoMudar={(v) => atualizar({ aliquotaImposto: v })}
                 />
               </Campo>

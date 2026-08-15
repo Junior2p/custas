@@ -31,6 +31,11 @@ export type Orcamento = {
    */
   qtdHerdeiros: number;
   /**
+   * Há meeiro(a) na sucessão. Conta para as certidões pessoais, mas fica
+   * de fora da divisão dos quinhões — a meação é direito próprio, não herança.
+   */
+  temMeeiro: boolean;
+  /**
    * Detalhamento nominal dos quinhões. Preenchido na aba Herdeiros, quando
    * o inventário sai do papel — não é necessário para cotar.
    */
@@ -118,6 +123,7 @@ export function orcamentoNovo(
 
     bens: [bemVazio()],
     qtdHerdeiros: servico.temHerdeiros ? 2 : 0,
+    temMeeiro: false,
     herdeiros: [],
 
     honorariosModo: servico.honorariosPadrao.modo,
@@ -173,6 +179,7 @@ export function aplicarServico(orcamento: Orcamento, chave: string): Orcamento {
     aliquotaImposto: null,
     // Serviço sem herdeiros zera a contagem; ao voltar, sugere 2.
     qtdHerdeiros: servico.temHerdeiros ? orcamento.qtdHerdeiros || 2 : 0,
+    temMeeiro: servico.temHerdeiros ? orcamento.temMeeiro : false,
   };
 }
 
@@ -213,6 +220,7 @@ export function normalizarOrcamento(bruto: Partial<Orcamento>): Orcamento {
     // Versões antigas guardavam só a lista nominal; a contagem vem dela.
     qtdHerdeiros:
       bruto.qtdHerdeiros ?? herdeiros.filter((h) => h.tipo === "herdeiro").length,
+    temMeeiro: bruto.temMeeiro ?? herdeiros.some((h) => h.tipo === "meeiro"),
     itensProposta: bruto.itensProposta ?? modelo.itensProposta,
     ajustes: bruto.ajustes ?? {},
     validadeDias: bruto.validadeDias ?? modelo.validadeDias,

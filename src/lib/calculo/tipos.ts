@@ -59,8 +59,12 @@ export type ConfigHonorarios =
 
 /** Parâmetros gerais editáveis na área de Parametrização. */
 export type Parametros = {
-  /** Em pontos percentuais. */
+  /** Alíquota efetiva da cotação, resolvida a partir das padrão abaixo. */
   impostoAliquota: number;
+  /** Padrão do imposto causa mortis (ITCMD/SP). */
+  aliquotaItcmd: number;
+  /** Padrão do imposto inter vivos (ITBI). */
+  aliquotaItbi: number;
   multaPercentual: number;
   ufesp: number;
   certidaoImovel: number;
@@ -93,6 +97,8 @@ export type BaseCalculo =
 
 export type Multiplicador =
   | "herdeiros"
+  /** Herdeiros + meeiro(a): quem precisa de certidão pessoal. */
+  | "pessoas"
   | "imoveis"
   | "imoveis_registro"
   | "bens"
@@ -151,6 +157,11 @@ export type LinhaCusto = {
 export type ContextoCalculo = {
   bens: Bem[];
   qtdHerdeiros: number;
+  /**
+   * O meeiro(a) precisa das mesmas certidões pessoais que os herdeiros,
+   * mas não entra na divisão dos quinhões.
+   */
+  temMeeiro: boolean;
   via: Via;
   parametros: Parametros;
   aplicarMulta: boolean;

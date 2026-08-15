@@ -61,7 +61,7 @@ export function Herdeiros() {
           <div className="flex flex-wrap gap-2">
             <Botao
               variante="secundario"
-              onClick={() => sincronizar(gerarHerdeiros(o.qtdHerdeiros, true))}
+              onClick={() => sincronizar(gerarHerdeiros(o.qtdHerdeiros, o.temMeeiro))}
               title="Cria a lista a partir da quantidade informada na apuração"
             >
               <Users size={15} /> Gerar {o.qtdHerdeiros} herdeiro(s)
@@ -88,8 +88,9 @@ export function Herdeiros() {
         {o.herdeiros.length === 0 ? (
           <p className="rounded-lg border border-dashed border-borda px-4 py-6 text-center text-sm text-texto-suave">
             Nenhum herdeiro detalhado. A cotação está usando{" "}
-            <strong className="text-marinho">{o.qtdHerdeiros}</strong> herdeiro(s) para calcular as
-            certidões — o detalhamento só é necessário na hora da partilha.
+            <strong className="text-marinho">{o.qtdHerdeiros}</strong> herdeiro(s)
+            {o.temMeeiro && <> e <strong className="text-marinho">1 meeiro(a)</strong></>} para
+            calcular as certidões — o detalhamento só é necessário na hora da partilha.
           </p>
         ) : (
           <>

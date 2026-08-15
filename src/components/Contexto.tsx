@@ -22,6 +22,7 @@ import { calcularOrcamento } from "@/lib/calculo/orcamento";
 import { calcularPartilha, type ResultadoPartilha } from "@/lib/calculo/partilha";
 import type { ConfigHonorarios, ContextoCalculo, ResultadoCalculo, Via } from "@/lib/calculo/tipos";
 import { servicoPorChave, type DefinicaoServico } from "@/lib/dados/servicos";
+import type { Parametros } from "@/lib/calculo/tipos";
 import { listarAcoes, salvarAcao as gravarAcao } from "@/lib/acao/armazenamento";
 import { acaoNova, type AcaoJudicial } from "@/lib/acao/modelo";
 import { listar, salvar as gravarCotacao } from "@/lib/orcamento/armazenamento";
@@ -33,6 +34,16 @@ import {
 } from "@/lib/parametrizacao/modelo";
 
 const CHAVE_APRESENTACAO = "custas.apresentacao";
+
+/** Alíquota padrão do serviço, vinda da parametrização do escritório. */
+export function aliquotaPadraoDoServico(
+  servico: DefinicaoServico,
+  parametros: Parametros
+): number {
+  if (servico.imposto === "itcmd") return parametros.aliquotaItcmd;
+  if (servico.imposto === "itbi") return parametros.aliquotaItbi;
+  return 0;
+}
 
 type Estado = {
   pronto: boolean;
@@ -178,9 +189,10 @@ export function ProvedorCustas({ children }: { children: ReactNode }) {
     const base: Omit<ContextoCalculo, "via"> = {
       bens: cotacao.bens,
       qtdHerdeiros: servico.temHerdeiros ? cotacao.qtdHerdeiros : 0,
+      temMeeiro: servico.temHerdeiros && cotacao.temMeeiro,
       parametros: {
         ...cotacao.parametros,
-        impostoAliquota: cotacao.aliquotaImposto ?? servico.impostoAliquota,
+        impostoAliquota: cotacao.aliquotaImposto ?? aliquotaPadraoDoServico(servico, cotacao.parametros),
       },
       aplicarMulta: cotacao.aplicarMulta,
       honorarios,

@@ -276,6 +276,8 @@ function quantidade(
   switch (item.multiplicador) {
     case "herdeiros":
       return ctx.qtdHerdeiros;
+    case "pessoas":
+      return ctx.qtdHerdeiros + (ctx.temMeeiro ? 1 : 0);
     case "imoveis":
       return bases.qtdImoveis;
     case "imoveis_registro":

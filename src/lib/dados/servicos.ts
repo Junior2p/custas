@@ -12,6 +12,8 @@ export type DefinicaoServico = {
   nome: string;
   /** Nome do imposto exibido na linha. `null` = o serviço não recolhe imposto. */
   nomeImposto: string | null;
+  /** Qual alíquota padrão da parametrização o serviço usa. */
+  imposto: "itcmd" | "itbi" | null;
   /** Alíquota em pontos percentuais. */
   impostoAliquota: number;
   temHerdeiros: boolean;
@@ -79,9 +81,10 @@ const CERTIDAO_TESTAMENTO: ItemCatalogo = {
 
 const CERTIDOES_PESSOAIS: ItemCatalogo = {
   chave: "certidoes_pessoais",
-  nome: "Certidões Pessoais dos Herdeiros",
+  nome: "Certidões Pessoais",
   tipoCalculo: "por_unidade",
-  multiplicador: "herdeiros",
+  // Conta o meeiro(a) junto: ele precisa das mesmas certidões.
+  multiplicador: "pessoas",
   parametro: "certidaoPessoalHerdeiro",
   ordem: 50,
 };
@@ -173,6 +176,7 @@ const PROPOSTA_GENERICA = [
 export const SERVICOS: DefinicaoServico[] = [
   {
     chave: "inventario_consensual",
+    imposto: "itcmd",
     textoProposta:
       "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Inventário de:",
     nome: "Inventário Consensual",
@@ -196,6 +200,7 @@ export const SERVICOS: DefinicaoServico[] = [
   },
   {
     chave: "inventario_litigioso",
+    imposto: "itcmd",
     textoProposta:
       "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Inventário de:",
     nome: "Inventário Litigioso",
@@ -219,6 +224,7 @@ export const SERVICOS: DefinicaoServico[] = [
   },
   {
     chave: "escritura",
+    imposto: "itbi",
     textoProposta:
       "Conforme solicitado, apresento a proposta para a realização dos serviços referente à Escritura de Compra e Venda de:",
     nome: "Escritura de Compra e Venda",
@@ -241,6 +247,7 @@ export const SERVICOS: DefinicaoServico[] = [
   },
   {
     chave: "usucapiao",
+    imposto: null,
     textoProposta:
       "Conforme solicitado, apresento a proposta para a realização dos serviços referente à Ação de Usucapião de:",
     nome: "Usucapião",
@@ -258,6 +265,7 @@ export const SERVICOS: DefinicaoServico[] = [
   },
   {
     chave: "divorcio_consensual",
+    imposto: null,
     textoProposta:
       "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Divórcio de:",
     nome: "Divórcio Consensual",
@@ -275,6 +283,7 @@ export const SERVICOS: DefinicaoServico[] = [
   },
   {
     chave: "divorcio_litigioso",
+    imposto: null,
     textoProposta:
       "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Divórcio de:",
     nome: "Divórcio Litigioso",
@@ -292,6 +301,7 @@ export const SERVICOS: DefinicaoServico[] = [
   },
   {
     chave: "alvara_judicial",
+    imposto: null,
     textoProposta:
       "Conforme solicitado, apresento a proposta para a realização dos serviços referente ao Alvará Judicial de:",
     nome: "Alvará Judicial",
