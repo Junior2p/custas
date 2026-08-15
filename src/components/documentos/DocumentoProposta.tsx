@@ -50,7 +50,7 @@ export function DocumentoProposta({
       titulo={titulo}
       escritorio={escritorio}
       rodape={
-        <p className="mt-8 text-right text-[11px] italic">
+        <p className="text-right text-[11px] italic">
           Proposta válida por {validadeDias} dias.
         </p>
       }

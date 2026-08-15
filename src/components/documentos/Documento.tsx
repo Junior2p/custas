@@ -43,37 +43,41 @@ export function Documento({
 
   return createPortal(
     <article className="area-impressao text-[13px] leading-relaxed text-black">
-      <header className="mb-5 text-center">
+      {/* Timbrado: monograma à esquerda e os dados do escritório ao lado. */}
+      <header className="mb-8 flex items-start gap-4">
         <Image
-          src="/logo-escritorio.png"
-          alt={escritorio.nome}
-          width={420}
-          height={158}
+          src="/jr-monograma.png"
+          alt=""
+          width={92}
+          height={115}
           unoptimized
           priority
-          className="mx-auto h-20 w-auto"
+          className="h-16 w-auto shrink-0"
         />
+        <div className="text-[10.5px] leading-snug">
+          <p className="mb-1 text-[15px] font-medium">{escritorio.nome}</p>
+          {escritorio.email && <p>{escritorio.email}</p>}
+          {escritorio.telefone && <p>Contato: {escritorio.telefone}</p>}
+          {escritorio.endereco && <p>{escritorio.endereco}</p>}
+          {escritorio.oab && <p>{escritorio.oab}</p>}
+        </div>
       </header>
 
       <h1 className="text-center text-base font-bold tracking-wide uppercase">{titulo}</h1>
-      {subtitulo && (
-        <p className="mt-1 text-center text-[11px] text-black/70">{subtitulo}</p>
-      )}
+      {subtitulo && <p className="mt-1 text-center text-[11px] italic">{subtitulo}</p>}
 
       <div className="mt-5">{children}</div>
 
-      {rodape}
+      {/* Fecho do documento em bloco único: nunca partido entre páginas. */}
+      <footer className="bloco-assinatura mt-6">
+        {rodape}
 
-      {/* Data e assinatura andam juntas: nunca partidas entre páginas. */}
-      <footer className="bloco-assinatura mt-8">
-        <p>
+        <p className="mt-4">
           {escritorio.cidade}, {hoje}.
         </p>
 
-        <div className="mt-10 w-72 border-t border-black pt-1.5">
+        <div className="mt-12 w-72 border-t border-black pt-1.5 text-center">
           <p className="font-bold uppercase">{escritorio.nome}</p>
-          <p>{escritorio.oab}</p>
-          <p>Tel. {escritorio.telefone}</p>
         </div>
       </footer>
     </article>,

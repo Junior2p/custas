@@ -19,6 +19,9 @@ export type DadosEscritorio = {
   oab: string;
   telefone: string;
   email: string;
+  /** Endereço completo, como sai no timbrado. */
+  endereco: string;
+  /** Usada na linha de data, no fim do documento. */
   cidade: string;
 };
 
@@ -68,6 +71,7 @@ export const PARAMETRIZACAO_PADRAO: Parametrizacao = {
     oab: "OAB/SP 294.775",
     telefone: "(17) 99703-5758",
     email: "juniorlopes.2p@gmail.com",
+    endereco: "Rua Arnaldo Rodrigues Neto, 305, centro — São João das Duas Pontes/SP",
     cidade: "São João das Duas Pontes/SP",
   },
   condicoes: {

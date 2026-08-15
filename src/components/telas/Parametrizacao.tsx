@@ -268,7 +268,8 @@ export function Parametrizacao() {
               ["oab", "OAB"],
               ["telefone", "Telefone"],
               ["email", "E-mail"],
-              ["cidade", "Cidade"],
+              ["endereco", "Endereço"],
+              ["cidade", "Cidade (linha da data)"],
             ] as const
           ).map(([chave, rotulo]) => (
             <Campo key={chave} rotulo={rotulo}>
