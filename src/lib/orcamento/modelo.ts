@@ -51,6 +51,9 @@ export type Orcamento = {
   parcelas: number;
   validadeDias: number;
   formaPagamento: string;
+  /** Textos do documento, revisáveis antes de imprimir. */
+  tituloProposta: string;
+  textoAbertura: string;
   itensProposta: ItemProposta[];
 
   /**
@@ -138,6 +141,8 @@ export function orcamentoNovo(
     parcelas: base.condicoes.parcelas,
     validadeDias: base.condicoes.validadeDias,
     formaPagamento: "",
+    tituloProposta: "Proposta de Prestação de Serviço",
+    textoAbertura: servico.textoProposta,
     itensProposta: servico.itensProposta.map((i) => ({ ...i })),
     ajustes: {},
 
@@ -161,6 +166,7 @@ export function aplicarServico(orcamento: Orcamento, chave: string): Orcamento {
         ? servico.honorariosPadrao.percentual
         : orcamento.honorariosPercentualCustos,
     itensProposta: servico.itensProposta.map((i) => ({ ...i })),
+    textoAbertura: servico.textoProposta,
     viaEscolhida: servico.vias.includes(orcamento.viaEscolhida)
       ? orcamento.viaEscolhida
       : servico.vias[0],
@@ -211,6 +217,8 @@ export function normalizarOrcamento(bruto: Partial<Orcamento>): Orcamento {
     ajustes: bruto.ajustes ?? {},
     validadeDias: bruto.validadeDias ?? modelo.validadeDias,
     formaPagamento: bruto.formaPagamento ?? "",
+    tituloProposta: bruto.tituloProposta || modelo.tituloProposta,
+    textoAbertura: bruto.textoAbertura || modelo.textoAbertura,
     parametros: { ...modelo.parametros, ...bruto.parametros },
     faixasCustas: bruto.faixasCustas?.length ? bruto.faixasCustas : modelo.faixasCustas,
     aliquotaImposto: bruto.aliquotaImposto ?? null,

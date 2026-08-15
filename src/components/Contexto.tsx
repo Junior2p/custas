@@ -22,6 +22,8 @@ import { calcularOrcamento } from "@/lib/calculo/orcamento";
 import { calcularPartilha, type ResultadoPartilha } from "@/lib/calculo/partilha";
 import type { ConfigHonorarios, ContextoCalculo, ResultadoCalculo, Via } from "@/lib/calculo/tipos";
 import { servicoPorChave, type DefinicaoServico } from "@/lib/dados/servicos";
+import { listarAcoes, salvarAcao as gravarAcao } from "@/lib/acao/armazenamento";
+import { acaoNova, type AcaoJudicial } from "@/lib/acao/modelo";
 import { listar, salvar as gravarCotacao } from "@/lib/orcamento/armazenamento";
 import { orcamentoNovo, type Orcamento } from "@/lib/orcamento/modelo";
 import {
@@ -36,6 +38,8 @@ type Estado = {
   pronto: boolean;
   cotacao: Orcamento;
   lista: Orcamento[];
+  acao: AcaoJudicial;
+  acoes: AcaoJudicial[];
   parametrizacao: Parametrizacao;
   apresentacao: boolean;
   temAlteracoes: boolean;
@@ -49,6 +53,10 @@ type Estado = {
   partilha: ResultadoPartilha;
 
   atualizar: (campos: Partial<Orcamento>) => void;
+  atualizarAcao: (campos: Partial<AcaoJudicial>) => void;
+  trocarAcao: (a: AcaoJudicial) => void;
+  trocarListaAcoes: (l: AcaoJudicial[]) => void;
+  salvarAcao: () => void;
   trocarCotacao: (o: Orcamento) => void;
   trocarLista: (l: Orcamento[]) => void;
   salvarCotacao: () => void;
@@ -69,6 +77,8 @@ export function ProvedorCustas({ children }: { children: ReactNode }) {
   const [cotacao, setCotacao] = useState<Orcamento | null>(null);
   const [lista, setLista] = useState<Orcamento[]>([]);
   const [parametrizacao, setParametrizacao] = useState<Parametrizacao | null>(null);
+  const [acao, setAcao] = useState<AcaoJudicial | null>(null);
+  const [acoes, setAcoes] = useState<AcaoJudicial[]>([]);
   const [apresentacao, setApresentacao] = useState(false);
   const [referencia, setReferencia] = useState("");
 
@@ -77,6 +87,10 @@ export function ProvedorCustas({ children }: { children: ReactNode }) {
     const base = carregarParametrizacao();
     const salvos = listar();
     const inicial = salvos[0] ?? orcamentoNovo(salvos, undefined, base);
+
+    const acoesSalvas = listarAcoes();
+    setAcoes(acoesSalvas);
+    setAcao(acoesSalvas[0] ?? acaoNova(acoesSalvas));
 
     setParametrizacao(base);
     setLista(salvos);
@@ -104,6 +118,20 @@ export function ProvedorCustas({ children }: { children: ReactNode }) {
       const gravado = nova.find((x) => x.id === atual.id) ?? atual;
       setReferencia(JSON.stringify(gravado));
       return gravado;
+    });
+  }, []);
+
+  const atualizarAcao = useCallback(
+    (campos: Partial<AcaoJudicial>) => setAcao((atual) => (atual ? { ...atual, ...campos } : atual)),
+    []
+  );
+
+  const salvarAcaoAtual = useCallback(() => {
+    setAcao((atual) => {
+      if (!atual) return atual;
+      const nova = gravarAcao(atual);
+      setAcoes(nova);
+      return nova.find((x) => x.id === atual.id) ?? atual;
     });
   }, []);
 
@@ -176,7 +204,7 @@ export function ProvedorCustas({ children }: { children: ReactNode }) {
     return { servico, via, judicial, extrajudicial, resultado, totalProposta, partilha };
   }, [cotacao, parametrizacao]);
 
-  if (!pronto || !cotacao || !parametrizacao || !derivado) {
+  if (!pronto || !cotacao || !parametrizacao || !derivado || !acao) {
     return (
       <p className="mx-auto max-w-6xl px-4 py-20 text-center text-sm text-texto-suave">
         Carregando…
@@ -188,11 +216,17 @@ export function ProvedorCustas({ children }: { children: ReactNode }) {
     pronto,
     cotacao,
     lista,
+    acao,
+    acoes,
     parametrizacao,
     apresentacao,
     temAlteracoes: JSON.stringify(cotacao) !== referencia,
     ...derivado,
     atualizar,
+    atualizarAcao,
+    trocarAcao: setAcao,
+    trocarListaAcoes: setAcoes,
+    salvarAcao: salvarAcaoAtual,
     trocarCotacao,
     trocarLista: setLista,
     salvarCotacao,

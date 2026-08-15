@@ -1,17 +1,17 @@
 "use client";
 
 // ============================================================
-// PROPOSTA — o documento que vai ao cliente.
-// Fica oculto na tela e é o único bloco impresso (ver globals.css).
+// Proposta das ações patrimoniais (inventário, escritura, usucapião…),
+// no mesmo layout dos demais documentos.
 // ============================================================
-
-import Image from "next/image";
 
 import type { Bem, Via } from "@/lib/calculo/tipos";
 import type { DadosEscritorio } from "@/lib/parametrizacao/modelo";
-import { moeda } from "./ui";
+import { moeda } from "../ui";
+import { Documento, Texto, Titulo } from "./Documento";
 
-export function Proposta({
+export function DocumentoProposta({
+  titulo,
   cliente,
   textoAbertura,
   via,
@@ -25,6 +25,7 @@ export function Proposta({
   observacoes,
   escritorio,
 }: {
+  titulo: string;
   cliente: string;
   textoAbertura: string;
   via: Via;
@@ -38,11 +39,6 @@ export function Proposta({
   observacoes: string;
   escritorio: DadosEscritorio;
 }) {
-  const hoje = new Date().toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
   const entrada = (total * entradaPercentual) / 100;
   const saldo = total - entrada;
   const inclusos = itens.filter((i) => i.incluso);
@@ -50,24 +46,16 @@ export function Proposta({
   const bensListados = bens.filter((b) => b.descricao || b.valorVenal > 0);
 
   return (
-    <article className="area-impressao mt-8 hidden text-[13px] leading-relaxed text-black print:block">
-      <header className="mb-8 text-center">
-        <Image
-          src="/logo-escritorio.png"
-          alt={escritorio.nome}
-          width={420}
-          height={158}
-          unoptimized
-          priority
-          className="mx-auto h-24 w-auto"
-        />
-      </header>
-
-      <h1 className="mb-6 text-center text-base font-bold tracking-wide uppercase">
-        Proposta de Prestação de Serviço
-      </h1>
-
-      <p>{textoAbertura}</p>
+    <Documento
+      titulo={titulo}
+      escritorio={escritorio}
+      rodape={
+        <p className="mt-8 text-right text-[11px] italic">
+          Proposta válida por {validadeDias} dias.
+        </p>
+      }
+    >
+      <Texto conteudo={textoAbertura} />
       <p className="my-3 text-center text-sm font-bold uppercase">{cliente || "—"}</p>
 
       {bensListados.length > 0 && (
@@ -94,7 +82,7 @@ export function Proposta({
 
       {inclusos.length > 0 && (
         <>
-          <p className="mt-6 mb-2 font-semibold">Serviços que estão INCLUSOS nesta proposta:</p>
+          <Titulo>Serviços inclusos nesta proposta</Titulo>
           <ul className="space-y-1">
             {inclusos.map((i) => (
               <li key={i.descricao}>✅ &nbsp;{i.descricao}</li>
@@ -105,9 +93,7 @@ export function Proposta({
 
       {naoInclusos.length > 0 && (
         <>
-          <p className="mt-5 mb-2 font-semibold">
-            Serviços que NÃO estão inclusos nesta proposta:
-          </p>
+          <Titulo>Serviços NÃO inclusos</Titulo>
           <ul className="space-y-1">
             {naoInclusos.map((i) => (
               <li key={i.descricao}>❌ &nbsp;{i.descricao}</li>
@@ -116,21 +102,19 @@ export function Proposta({
         </>
       )}
 
-      <p className="mt-6 mb-2 font-semibold uppercase">
-        Valor total da proposta e forma de pagamento:
-      </p>
+      <Titulo>Valor total e forma de pagamento</Titulo>
       <p className="text-lg font-bold">{moeda(total)}</p>
 
       {formaPagamento.trim() ? (
-        <p className="mt-2 whitespace-pre-line">{formaPagamento}</p>
+        <Texto conteudo={formaPagamento} className="mt-2" />
       ) : (
         <ul className="mt-2 space-y-1">
           <li>
-            Entrada de {entradaPercentual}% do valor da proposta — {moeda(entrada)}
+            • Entrada de {entradaPercentual}% do valor da proposta — {moeda(entrada)}
           </li>
           {saldo > 0 && (
             <li>
-              Saldo de {moeda(saldo)} em até {parcelas}x de {moeda(saldo / parcelas)}
+              • Saldo de {moeda(saldo)} em até {parcelas}x de {moeda(saldo / parcelas)}
             </li>
           )}
         </ul>
@@ -141,27 +125,12 @@ export function Proposta({
         <strong>{via === "judicial" ? "JUDICIAL" : "CARTÓRIO (EXTRAJUDICIAL)"}</strong>
       </p>
 
-      {observacoes && (
-        <p className="mt-4">
-          <strong>OBS:</strong> {observacoes}
-        </p>
+      {observacoes.trim() && (
+        <>
+          <Titulo>Observações</Titulo>
+          <Texto conteudo={observacoes} />
+        </>
       )}
-
-      <p className="mt-8 text-right text-[11px] italic">
-        Proposta válida por {validadeDias} dias.
-      </p>
-
-      <p className="mt-10">
-        {escritorio.cidade}, {hoje}.
-      </p>
-
-      <div className="mt-12">
-        <div className="w-64 border-t border-black pt-1.5">
-          <p className="font-bold uppercase">{escritorio.nome}</p>
-          <p>{escritorio.oab}</p>
-          <p>Tel. {escritorio.telefone}</p>
-        </div>
-      </div>
-    </article>
+    </Documento>
   );
 }

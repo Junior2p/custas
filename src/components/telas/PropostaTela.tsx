@@ -4,11 +4,11 @@ import { Plus, Printer, Trash2 } from "lucide-react";
 
 import { useCustas } from "../Contexto";
 import { Pagina } from "../Pagina";
-import { Proposta } from "../Proposta";
+import { DocumentoProposta } from "../documentos/DocumentoProposta";
 import { Botao, Campo, Numero, Secao, Texto, moeda } from "../ui";
 
 export function PropostaTela() {
-  const { cotacao: o, servico, via, resultado, totalProposta, parametrizacao, atualizar } =
+  const { cotacao: o, via, resultado, totalProposta, parametrizacao, atualizar } =
     useCustas();
 
   const entrada = (totalProposta * o.entrada) / 100;
@@ -149,19 +149,43 @@ export function PropostaTela() {
         </p>
       </Secao>
 
-      <Secao titulo="Observações">
-        <textarea
-          value={o.observacoes}
-          onChange={(e) => atualizar({ observacoes: e.target.value })}
-          rows={3}
-          placeholder="Ex.: IPTU em aberto dos dois imóveis."
-          className="w-full rounded-lg border border-borda bg-white px-3 py-2 text-sm outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/15"
-        />
+      <Secao
+        titulo="Textos do documento"
+        descricao="Revise antes de imprimir — sai no PDF exatamente como estiver aqui."
+      >
+        <div className="space-y-4">
+          <Campo rotulo="Título">
+            <Texto
+              value={o.tituloProposta}
+              onChange={(e) => atualizar({ tituloProposta: e.target.value })}
+            />
+          </Campo>
+
+          <Campo rotulo="Abertura">
+            <textarea
+              value={o.textoAbertura}
+              onChange={(e) => atualizar({ textoAbertura: e.target.value })}
+              rows={2}
+              className="w-full rounded-lg border border-borda bg-white px-3 py-2 text-sm leading-relaxed outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/15"
+            />
+          </Campo>
+
+          <Campo rotulo="Observações">
+            <textarea
+              value={o.observacoes}
+              onChange={(e) => atualizar({ observacoes: e.target.value })}
+              rows={3}
+              placeholder="Ex.: IPTU em aberto dos dois imóveis."
+              className="w-full rounded-lg border border-borda bg-white px-3 py-2 text-sm leading-relaxed outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/15"
+            />
+          </Campo>
+        </div>
       </Secao>
 
-      <Proposta
+      <DocumentoProposta
+        titulo={o.tituloProposta}
         cliente={o.cliente}
-        textoAbertura={servico.textoProposta}
+        textoAbertura={o.textoAbertura}
         via={via}
         bens={o.bens}
         itens={o.itensProposta}

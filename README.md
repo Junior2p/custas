@@ -33,11 +33,32 @@ Navegação lateral, no padrão do Gestão de Imóveis:
 
 | Tela | O que faz |
 |---|---|
-| **Apuração** | Serviço, cliente, quantidade de herdeiros, bens e a composição dos custos nas duas vias |
+| **Ações Patrimoniais** | Inventário, escritura, usucapião, divórcio, alvará — tudo que se mede por bens. Serviço, cliente, nº de herdeiros, bens e a composição dos custos |
 | **Herdeiros e quinhões** | Detalhamento nominal e rateio — só necessário na hora do inventário, não para cotar |
 | **Proposta** | Valor, condições de pagamento, checklist ✅/❌ e impressão |
+| **Ações Judiciais** | Ações comuns, em dois documentos: **extrato de honorários** (processo em curso, ato a ato pela Tabela OAB/SP) e **proposta de ingresso** (honorários iniciais + êxito + taxa judiciária de 1,5%) |
 | **Parametrização** | Certidões, multa, UFESP, honorários padrão, condições padrão e dados do escritório |
 | **Tabelas de cartório** | Faixas de Notas e do SRI e a Tabela OAB — editáveis e com importação de CSV |
+
+## Documentos
+
+Todos passam pelo mesmo layout (`src/components/documentos/Documento.tsx`): logo do
+escritório no topo, título, corpo e assinatura com OAB e telefone.
+
+**Todo texto é revisável antes de imprimir.** Cada documento tem uma seção *Textos do
+documento* com título, abertura, blocos específicos e observações — o que estiver ali sai
+no PDF exatamente como estiver.
+
+### Extrato de honorários
+
+`Valor final = piso da Tabela OAB/SP × complexidade`, com acréscimo opcional de êxito.
+Os testes conferem contra um extrato real (processo 1004737-78.2022.8.26.0189):
+subtotal R$ 20.585,71 e total geral R$ 21.585,71.
+
+### Proposta de ingresso
+
+Honorários iniciais + percentual de êxito (cobrado só em caso de sucesso) + taxa
+judiciária sobre o valor da causa — **1,5%** por padrão, editável.
 
 ## Como o sistema guarda as cotações
 

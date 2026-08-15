@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Calculator,
+  Gavel,
   Eye,
   EyeOff,
   FileText,
@@ -19,9 +20,10 @@ import { useCustas } from "./Contexto";
 import { moeda } from "./ui";
 
 const ITENS = [
-  { href: "/", rotulo: "Apuração", icone: Calculator, interno: false },
+  { href: "/", rotulo: "Ações Patrimoniais", icone: Calculator, interno: false },
   { href: "/herdeiros", rotulo: "Herdeiros e quinhões", icone: Users, interno: false },
   { href: "/proposta", rotulo: "Proposta", icone: FileText, interno: false },
+  { href: "/acoes", rotulo: "Ações Judiciais", icone: Gavel, interno: false },
   { href: "/parametrizacao", rotulo: "Parametrização", icone: Settings2, interno: true },
   { href: "/tabelas", rotulo: "Tabelas de cartório", icone: Table2, interno: true },
 ];
