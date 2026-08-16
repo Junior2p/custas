@@ -1,30 +1,39 @@
 // ============================================================
-// SESSÃO — acesso por código validador, sem banco.
+// ACESSO — usuário e senha conferidos NO SERVIDOR.
 //
-// O código fica em variável de ambiente (nunca no código nem no
-// repositório). Ao validar, o servidor devolve um cookie httpOnly
-// assinado com HMAC; o proxy só confere a assinatura e a validade.
+// A trava anterior era cadastrada pela tela e guardada no navegador.
+// Isso nunca protegeu de verdade: quem abria o sistema de outra
+// máquina tinha o armazenamento vazio, portanto nenhuma trava. Só o
+// servidor pode barrar alguém que nunca esteve aqui.
+//
+// As credenciais ficam em variáveis de ambiente — nunca no código,
+// nunca no repositório, nunca no navegador.
 // ============================================================
 
 export const COOKIE_SESSAO = "custas_sessao";
 const DURACAO_HORAS = 12;
 
-/** Código configurado no servidor. Sem ele não há acesso possível. */
-export const codigoConfigurado = () => (process.env.CUSTAS_CODIGO ?? "").trim();
+export const usuarioConfigurado = () =>
+  (process.env.CUSTAS_USUARIO ?? "").trim().toLowerCase();
+
+export const senhaConfigurada = () => process.env.CUSTAS_SENHA ?? "";
+
+/** Só há login possível quando as duas variáveis existem. */
+export const credenciaisConfiguradas = () =>
+  Boolean(usuarioConfigurado() && senhaConfigurada());
 
 /**
- * O segredo da assinatura deriva do próprio código quando não é informado —
- * assim basta configurar uma variável. Trocar o código invalida as sessões
- * em aberto, que é o comportamento desejado.
+ * Em produção o acesso é SEMPRE exigido. Sem credenciais configuradas o
+ * sistema fica bloqueado com instruções, em vez de aberto na internet —
+ * é preferível derrubar o acesso a expor os dados por esquecimento.
+ *
+ * Em desenvolvimento, sem credenciais, abre direto.
  */
-const segredo = () => process.env.CUSTAS_SEGREDO?.trim() || `custas::${codigoConfigurado()}`;
+export const exigeAcesso = () =>
+  credenciaisConfiguradas() || process.env.NODE_ENV === "production";
 
-/**
- * A proteção de servidor só entra quando CUSTAS_CODIGO existe. Sem ela,
- * quem controla o acesso é a trava local cadastrada na Parametrização
- * (ver src/lib/auth/trava.ts).
- */
-export const exigeAcesso = () => Boolean(codigoConfigurado());
+const segredo = () =>
+  process.env.CUSTAS_SEGREDO?.trim() || `custas::${usuarioConfigurado()}::${senhaConfigurada()}`;
 
 async function chave() {
   return crypto.subtle.importKey(

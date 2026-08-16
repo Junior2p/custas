@@ -1,27 +1,39 @@
 import { NextResponse } from "next/server";
 
-import { COOKIE_SESSAO, codigoConfigurado, criarSessao, iguais } from "@/lib/auth/sessao";
+import {
+  COOKIE_SESSAO,
+  credenciaisConfiguradas,
+  criarSessao,
+  iguais,
+  senhaConfigurada,
+  usuarioConfigurado,
+} from "@/lib/auth/sessao";
 
 export async function POST(request: Request) {
-  const esperado = codigoConfigurado();
-
-  if (!esperado) {
+  if (!credenciaisConfiguradas()) {
     return NextResponse.json(
-      { erro: "Nenhum código configurado no servidor (CUSTAS_CODIGO)." },
+      { erro: "Acesso não configurado no servidor (CUSTAS_USUARIO e CUSTAS_SENHA)." },
       { status: 503 }
     );
   }
 
-  let codigo = "";
+  let usuario = "";
+  let senha = "";
   try {
     const corpo = await request.json();
-    codigo = String(corpo?.codigo ?? "");
+    usuario = String(corpo?.usuario ?? "").trim().toLowerCase();
+    senha = String(corpo?.senha ?? "");
   } catch {
     return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
   }
 
-  if (!iguais(codigo, esperado)) {
-    return NextResponse.json({ erro: "Código inválido." }, { status: 401 });
+  // Confere sempre os dois, para o tempo de resposta não denunciar
+  // qual deles estava errado.
+  const usuarioOk = iguais(usuario, usuarioConfigurado());
+  const senhaOk = iguais(senha, senhaConfigurada());
+
+  if (!usuarioOk || !senhaOk) {
+    return NextResponse.json({ erro: "Usuário ou senha incorretos." }, { status: 401 });
   }
 
   const { valor, maxAge } = await criarSessao();

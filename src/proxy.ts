@@ -4,7 +4,8 @@ import { COOKIE_SESSAO, exigeAcesso, sessaoValida } from "@/lib/auth/sessao";
 
 // Next 16 renomeou a convenção: o antigo `middleware.ts` agora é `proxy.ts`.
 export async function proxy(request: NextRequest) {
-  // Em desenvolvimento, sem código configurado, o app abre direto.
+  // Em desenvolvimento, sem credenciais configuradas, o app abre direto.
+  // Em produção `exigeAcesso()` é sempre verdadeiro: sem login não passa.
   if (!exigeAcesso()) return NextResponse.next({ request });
 
   const { pathname } = request.nextUrl;

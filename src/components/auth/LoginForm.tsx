@@ -6,11 +6,12 @@ import Image from "next/image";
 
 export default function LoginForm({ configurado }: { configurado: boolean }) {
   const router = useRouter();
-  const [codigo, setCodigo] = useState("");
+  const [usuario, setUsuario] = useState("");
+  const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
 
-  async function validar(e: React.FormEvent) {
+  async function entrar(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
     setCarregando(true);
@@ -19,13 +20,13 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
       const resposta = await fetch("/api/entrar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo }),
+        body: JSON.stringify({ usuario, senha }),
       });
 
       if (!resposta.ok) {
         const dados = await resposta.json().catch(() => ({}));
         setErro(dados.erro ?? "Não foi possível entrar.");
-        setCodigo("");
+        setSenha("");
         setCarregando(false);
         return;
       }
@@ -64,24 +65,42 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
         {!configurado ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-alerta">
             <p className="font-medium">Acesso ainda não configurado.</p>
-            <p className="mt-1 text-xs">
-              Defina a variável de ambiente <code>CUSTAS_CODIGO</code> no painel da Vercel e
-              publique de novo. Enquanto ela não existir, o sistema fica bloqueado.
+            <p className="mt-2 text-xs">
+              O sistema está bloqueado até que o usuário e a senha sejam definidos no servidor.
+              No terminal, execute:
             </p>
+            <pre className="mt-2 overflow-x-auto rounded bg-white/70 p-2 text-[11px] text-texto">
+              npx vercel env add CUSTAS_USUARIO production{"\n"}
+              npx vercel env add CUSTAS_SENHA production
+            </pre>
+            <p className="mt-2 text-xs">E publique de novo para valer.</p>
           </div>
         ) : (
-          <form onSubmit={validar} className="space-y-4">
+          <form onSubmit={entrar} className="space-y-4">
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-marinho">Código validador</span>
+              <span className="mb-1 block text-sm font-medium text-marinho">Usuário</span>
               <input
-                type="password"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
+                type="text"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value)}
                 required
                 autoFocus
+                autoComplete="username"
+                placeholder="seu@email.com"
+                className="w-full rounded-lg border border-borda px-4 py-2.5 text-sm outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/20"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-marinho">Senha</span>
+              <input
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                required
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full rounded-lg border border-borda px-4 py-2.5 text-center text-lg tracking-widest outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/20"
+                className="w-full rounded-lg border border-borda px-4 py-2.5 text-sm outline-none focus:border-marinho focus:ring-2 focus:ring-marinho/20"
               />
             </label>
 
@@ -93,10 +112,10 @@ export default function LoginForm({ configurado }: { configurado: boolean }) {
 
             <button
               type="submit"
-              disabled={carregando || !codigo}
+              disabled={carregando}
               className="w-full rounded-lg bg-marinho py-2.5 font-medium text-white transition hover:bg-marinho-700 disabled:opacity-60"
             >
-              {carregando ? "Validando..." : "Entrar"}
+              {carregando ? "Entrando..." : "Entrar"}
             </button>
           </form>
         )}

@@ -151,32 +151,29 @@ As divergências são correções intencionais de erros da planilha, listadas em
 
 ## Acesso
 
-Duas camadas, ambas sem banco:
-
-**1. Código validador cadastrado na tela** (Parametrização → Acesso). É o caminho normal:
-o sistema pede o código ao abrir. Guarda-se apenas o **SHA-256** — o código em si não fica
-salvo em lugar nenhum e não vai no arquivo exportado. A liberação vale enquanto a aba
-estiver aberta.
-
-Esqueceu? A tela de entrada tem *Esqueci o código*: confirmando o e-mail cadastrado em
-Parametrização → Dados do escritório, o código é **redefinido** (não há como reenviá-lo —
-o sistema não conhece o código, só a impressão digital dele).
-
-> Esta camada roda no navegador: é uma **trava de conveniência**. Ela impede o acesso
-> casual, não um ataque. O que a torna suficiente aqui é que as cotações ficam no
-> `localStorage` de cada navegador — não há dado de cliente no servidor.
-
-**2. Código no servidor** (opcional, inviolável). Defina `CUSTAS_CODIGO` e a validação
-passa a acontecer antes de a página carregar, com cookie `httpOnly` assinado em HMAC:
-
-```bash
-npx vercel env add CUSTAS_CODIGO production --scope elj
-```
+Login de **usuário e senha conferidos no servidor**, sem banco. O proxy exige sessão
+antes de a página carregar; ao entrar, o servidor devolve um cookie `httpOnly` assinado
+em HMAC, válido por 12 horas.
 
 | Variável | Papel |
 |---|---|
-| `CUSTAS_CODIGO` | Ativa a proteção de servidor. Ausente = só a trava local |
-| `CUSTAS_SEGREDO` | Opcional. Sem ele deriva do código — trocá-lo encerra as sessões |
+| `CUSTAS_USUARIO` | Usuário aceito (um e-mail, em geral) |
+| `CUSTAS_SENHA` | Senha |
+| `CUSTAS_SEGREDO` | Opcional. Sem ele deriva das credenciais — trocar a senha encerra as sessões |
+
+```bash
+npx vercel env add CUSTAS_USUARIO production --scope elj
+npx vercel env add CUSTAS_SENHA production --scope elj
+```
+
+Os comandos pedem o valor no terminal. Depois é preciso publicar de novo.
+
+> **Em produção, sem as duas variáveis, o sistema fica bloqueado** — com instruções na
+> tela, não aberto. Em desenvolvimento local, sem elas, abre direto.
+
+Houve antes uma trava cadastrada pela própria tela, guardada no navegador. Ela **não
+protegia**: quem abrisse o sistema de outra máquina tinha o armazenamento vazio, logo
+nenhuma trava. Foi removida — só o servidor pode barrar quem nunca esteve aqui.
 
 ## Deploy
 

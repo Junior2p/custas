@@ -577,7 +577,7 @@ test("as alíquotas padrão vêm da parametrização: ITCMD 4% e ITBI 3%", () =>
   assert.equal(PARAMETROS_PADRAO.aliquotaItbi, 3);
 
   for (const servico of SERVICOS) {
-    const esperado =
+    const esperado: number =
       servico.imposto === "itcmd"
         ? PARAMETROS_PADRAO.aliquotaItcmd
         : servico.imposto === "itbi"

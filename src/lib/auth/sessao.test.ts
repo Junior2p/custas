@@ -4,7 +4,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-process.env.CUSTAS_CODIGO = "codigo-para-teste";
+process.env.CUSTAS_USUARIO = "usuario@teste.com";
+process.env.CUSTAS_SENHA = "senha-para-teste";
 process.env.CUSTAS_SEGREDO = "segredo-para-teste";
 
 import { COOKIE_SESSAO, criarSessao, iguais, sessaoValida } from "./sessao";
@@ -42,6 +43,16 @@ test("sessão vencida é recusada", async () => {
   assert.equal(await sessaoValida(`${vencida}.${assinatura}`), false);
 });
 
+test("credenciais só existem quando usuário E senha estão definidos", async () => {
+  const { credenciaisConfiguradas } = await import("./sessao");
+  assert.ok(credenciaisConfiguradas());
+
+  const senhaOriginal = process.env.CUSTAS_SENHA;
+  process.env.CUSTAS_SENHA = "";
+  assert.equal(credenciaisConfiguradas(), false, "sem senha não há login possível");
+  process.env.CUSTAS_SENHA = senhaOriginal;
+});
+
 test("trocar o segredo invalida as sessões em aberto", async () => {
   const { valor } = await criarSessao();
   assert.ok(await sessaoValida(valor));
@@ -52,7 +63,7 @@ test("trocar o segredo invalida as sessões em aberto", async () => {
   process.env.CUSTAS_SEGREDO = "segredo-para-teste";
 });
 
-test("a comparação do código é feita caractere a caractere, sem atalho", () => {
+test("a comparação da senha é feita caractere a caractere, sem atalho", () => {
   assert.ok(iguais("abc", "abc"));
   assert.equal(iguais("abc", "abd"), false);
   assert.equal(iguais("abc", "abcd"), false, "tamanhos diferentes nunca batem");
