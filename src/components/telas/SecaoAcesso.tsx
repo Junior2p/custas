@@ -26,12 +26,28 @@ export function SecaoAcesso() {
           no painel da Vercel — nunca no código, no repositório ou no navegador. A sessão dura 12
           horas e vem de um cookie assinado, que não pode ser forjado.
         </p>
-        <p>
-          Para trocar as credenciais, atualize{" "}
-          <code className="rounded bg-white px-1 py-0.5">CUSTAS_USUARIO</code> e{" "}
-          <code className="rounded bg-white px-1 py-0.5">CUSTAS_SENHA</code> na Vercel e publique de
-          novo. Trocar a senha encerra as sessões em aberto.
-        </p>
+        <div>
+          <p className="mb-1.5">
+            <strong className="text-texto">Para trocar o usuário ou a senha</strong>, na pasta do
+            projeto (<code className="rounded bg-white px-1 py-0.5">~/Documents/GitHub/Custas</code>
+            ), rodar na ordem — trocando <code className="rounded bg-white px-1 py-0.5">SENHA</code>{" "}
+            por <code className="rounded bg-white px-1 py-0.5">USUARIO</code> conforme o caso:
+          </p>
+          <pre className="overflow-x-auto rounded bg-white px-3 py-2 text-[11px] leading-relaxed text-texto">
+{`npx vercel env rm CUSTAS_SENHA production --yes --scope elj
+npx vercel env add CUSTAS_SENHA production --scope elj
+npx vercel --prod --yes --scope elj`}
+          </pre>
+          <p className="mt-1.5">
+            O terminal pede o valor sem exibi-lo. <strong className="text-texto">O último
+            comando é obrigatório</strong>: sem publicar de novo, a credencial antiga continua
+            valendo. Trocar a senha encerra as sessões em aberto.
+          </p>
+          <p className="mt-1.5">
+            Pelo painel: Vercel → projeto <em>custas</em> → Settings → Environment Variables →
+            Edit, e depois Deployments → Redeploy.
+          </p>
+        </div>
         <p>
           O botão <strong className="text-texto">Sair</strong>, no rodapé do menu, encerra a sessão
           neste navegador.
